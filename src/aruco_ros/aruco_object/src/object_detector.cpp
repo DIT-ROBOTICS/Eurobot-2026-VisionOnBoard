@@ -14,17 +14,23 @@
 class ObjectDetectorNode : public rclcpp::Node
 {
 public:
+    // Node called object_detector
     ObjectDetectorNode() : Node("object_detector")
     {
         using std::placeholders::_1;
         subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/camera/camera/color/image_rect_raw", 10,
             std::bind(&ObjectDetectorNode::image_callback, this, _1));
+        // publisher for sending Poststamp to detect_dock_pose topic
         object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
+        // start TF System
         tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+            // get_clock() is for synchronization
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+            // subscribes to /tf and /tf_static and store into tf_buffer_
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-
+        
+        // Aruco setup
         dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
         detector_params_ = cv::aruco::DetectorParameters::create();
     
@@ -32,6 +38,7 @@ public:
             433.85614013671875, 0.0, 418.23370361328125,
             0.0, 433.11236572265625, 236.20132446289062,
             0.0, 0.0, 1.0);
+        // here assume image is already perfectly rectified
         dist_coeffs_ = cv::Mat::zeros(1, 5, CV_64F);
 
         MARKER_LENGTH = this->declare_parameter<double>("marker_length", 0.03);
@@ -44,14 +51,16 @@ public:
 private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
+        // cv_bridge converts ros2 sensor::msgs to cv::Mat
         cv_bridge::CvImagePtr cv_ptr;
         try {
+            // copy whole image sent by the message (originally it was a pointer)
             cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
         } catch (cv_bridge::Exception &e) {
             RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
             return;
         }
-
+        // Detect each frame for pattern that match with dictionary_ (2D)
         cv::Mat frame = cv_ptr->image;
         std::vector<int> ids;
         std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -59,8 +68,11 @@ private:
         cv::aruco::detectMarkers(frame, dictionary_, corners, ids, detector_params_, rejected);
 
         // publish marker tfs
+        // Pose Estimation (3D)
         if(ids.size() > 0){
             std::vector<cv::Vec3d> rvecs, tvecs;
+            // tvecs: Traslation vector (X, Y, Z from camera center)
+            // rvecs: (Rotation Vectors): Orientation using Rodrigues notation.
             cv::aruco::estimatePoseSingleMarkers(corners, MARKER_LENGTH, camera_matrix_, dist_coeffs_, rvecs, tvecs);
             cv::Vec3d rvecs_obj, tvecs_obj;
             int cnt = 0;
@@ -73,16 +85,21 @@ private:
             if(cnt > 0){
                 rvecs_obj /= cnt;
                 tvecs_obj /= cnt;
+                // Math Conversion (OpenCV to ROS TF2) OpenCV uses Matrices/Vectors; ROS uses Quaternions.
                 tf2::Vector3 t_cm(tvecs_obj[0], tvecs_obj[1], tvecs_obj[2]);
                 cv::Mat R_mat;
                 cv::Rodrigues(rvecs_obj, R_mat);
+                // map openCV matrix to TF2 matrix
                 tf2::Matrix3x3 m(
                     R_mat.at<double>(0,0), R_mat.at<double>(0,1), R_mat.at<double>(0,2),
                     R_mat.at<double>(1,0), R_mat.at<double>(1,1), R_mat.at<double>(1,2),
                     R_mat.at<double>(2,0), R_mat.at<double>(2,1), R_mat.at<double>(2,2));
+                
+                // Extract Quaternion
                 tf2::Quaternion q_cm; 
                 m.getRotation(q_cm);
-
+                
+                // package tf and broadcast
                 tf2::Transform T_cm(q_cm, t_cm);
                 geometry_msgs::msg::TransformStamped tf_msg;
                 tf_msg.header.stamp = this->get_clock()->now();
@@ -95,7 +112,9 @@ private:
                 // cv::waitKey(1);
 
                 try {
+                    // Lookup where is the object relative to base_footprint
                     geometry_msgs::msg::TransformStamped base2obj_tf = tf_buffer_->lookupTransform("base_footprint", "object_frame", tf2::TimePointZero);
+                    // Construct goal Pose (Should be the center of 4 hazelnuts)
                     geometry_msgs::msg::PoseStamped obj_pose_msg;
                     obj_pose_msg.header.stamp = this->get_clock()->now();
                     obj_pose_msg.header.frame_id = "object_frame";
