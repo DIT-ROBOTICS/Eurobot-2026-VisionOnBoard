@@ -24,22 +24,18 @@ public:
 private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
 
-    // Helper: Convert image and detect markers (2D)
-    bool detect_aruco_2d(const cv::Mat& frame, std::vector<int>& ids, std::vector<std::vector<cv::Point2f>>& corners);
-
-    // Helper: Given detected marker corners/ids estimate averaged pose for dock
-    bool compute_dock_pose(const std::vector<int>& ids, const std::vector<std::vector<cv::Point2f>>& corners,
-                           cv::Vec3d& out_rvec, cv::Vec3d& out_tvec);
-
     //  return clustered four or less aruco
-    void select_clustered_aruco(const std::vector<cv::Vec3d> &rvecs,
-                                const std::vector<cv::Vec3d> &tvecs,
-                                std::vector<cv::Vec3d> &selected_rvecs,
-                                std::vector<cv::Vec3d>& selected_tvecs,
-                                std::vector<int> &selected_ids);
+    void select_clustered_aruco(
+        const std::vector<int> &ids,
+        const std::vector<cv::Vec3d> &rvecs, 
+        const std::vector<cv::Vec3d> &tvecs,
+        std::vector<cv::Vec3d> &selected_rvecs, 
+        std::vector<cv::Vec3d>& selected_tvecs, 
+        std::vector<int>& selected_ids );
 
-    // Helper: Publish TF and PoseStamped for the dock/object
-    void publish_dock_transform(const cv::Vec3d& rvec, const cv::Vec3d& tvec, const rclcpp::Time& timestamp);
+    // Goal is to make the robot go perpendicular to the 4 clustered hazelnut
+    // PCA (Orientation) + Center (Translation)
+    geometry_msgs::msg::PoseStamped compute_perpendicular_pose(const std::vector<cv::Vec3d>& tvecs_camera_frame);
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr object_pose_publisher_;

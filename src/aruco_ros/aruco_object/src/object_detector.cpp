@@ -49,8 +49,7 @@ public:
     }
 
 private:
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
-    {
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
         // cv_bridge converts ros2 sensor::msgs to cv::Mat
         cv_bridge::CvImagePtr cv_ptr;
         try {
@@ -69,76 +68,31 @@ private:
         
         
         // publish marker tfs
-        // Pose Estimation (3D)
         if(ids.size() > 0){
             std::vector<cv::Vec3d> rvecs, tvecs, selected_rvecs, selected_tvecs;
             // tvecs: Traslation vector (X, Y, Z from camera center)
             // rvecs: (Rotation Vectors): Orientation using Rodrigues notation.
+            // Using PnP
             cv::aruco::estimatePoseSingleMarkers(corners, MARKER_LENGTH, camera_matrix_, dist_coeffs_, rvecs, tvecs);
-            std::vector<int> selected_id;
+            std::vector<int> selected_ids;
 
-            select_clustered_aruco(rvecs, tvecs, selected_rvecs, selected_tvecs, selected_id);
+            select_clustered_aruco(ids, rvecs, tvecs, selected_rvecs, selected_tvecs, selected_ids);
 
-            int cnt = 0;
-            for(size_t i=0; i<selected_id.size(); i++){
-                if(ids[i] != BLUE_ID && ids[i] != YELLOW_ID) continue;
-                tvecs_obj += tvecs[i];
-                cnt++;
-            }
-            if(cnt > 0){
-                tvecs_obj /= cnt;
-                // Math Conversion (OpenCV to ROS TF2) OpenCV uses Matrices/Vectors; ROS uses Quaternions.
-                tf2::Vector3 t_cm(tvecs_obj[0], tvecs_obj[1], tvecs_obj[2]);
-                cv::Mat R_mat;
-                cv::Rodrigues(rvecs_obj, R_mat);
-                // map openCV matrix to TF2 matrix
-                tf2::Matrix3x3 m(
-                    R_mat.at<double>(0,0), R_mat.at<double>(0,1), R_mat.at<double>(0,2),
-                    R_mat.at<double>(1,0), R_mat.at<double>(1,1), R_mat.at<double>(1,2),
-                    R_mat.at<double>(2,0), R_mat.at<double>(2,1), R_mat.at<double>(2,2));
-                
-                // Extract Quaternion
-                tf2::Quaternion q_cm; 
-                m.getRotation(q_cm);
-                
-                // package tf and broadcast
-                tf2::Transform T_cm(q_cm, t_cm);
-                geometry_msgs::msg::TransformStamped tf_msg;
-                tf_msg.header.stamp = this->get_clock()->now();
-                tf_msg.header.frame_id = "camera_color_optical_frame";
-                tf_msg.child_frame_id = "object_frame";
-                tf_msg.transform = tf2::toMsg(T_cm);
-                tf_broadcaster_->sendTransform(tf_msg);
-                // cv::aruco::drawDetectedMarkers(frame, corners, ids);
-                // cv::imshow("object Marker", frame);
-                // cv::waitKey(1);
-
-                try {
-                    // Lookup where is the object relative to base_footprint
-                    geometry_msgs::msg::TransformStamped base2obj_tf = tf_buffer_->lookupTransform("base_footprint", "object_frame", tf2::TimePointZero);
-                    // Construct goal Pose (Should be the center of 4 hazelnuts)
-                    geometry_msgs::msg::PoseStamped obj_pose_msg;
-                    obj_pose_msg.header.stamp = this->get_clock()->now();
-                    obj_pose_msg.header.frame_id = "object_frame";
-                    obj_pose_msg.pose.position.x = base2obj_tf.transform.translation.x + 0.1;
-                    obj_pose_msg.pose.position.y = base2obj_tf.transform.translation.y;
-                    obj_pose_msg.pose.position.z = base2obj_tf.transform.translation.z;
-                    obj_pose_msg.pose.orientation.x = base2obj_tf.transform.rotation.x;
-                    obj_pose_msg.pose.orientation.y = base2obj_tf.transform.rotation.y;
-                    obj_pose_msg.pose.orientation.z = base2obj_tf.transform.rotation.z;
-                    obj_pose_msg.pose.orientation.w = base2obj_tf.transform.rotation.w;
-                    object_pose_publisher_->publish(obj_pose_msg);
-
-                } catch (tf2::TransformException &ex) {
-                    RCLCPP_WARN(this->get_logger(), "TF lookup failed: %s", ex.what());
-                }
+            geometry_msgs::msg::PoseStamped target_pose = compute_perpendicular_pose(selected_tvecs);
+            if (!target_pose.header.frame_id.empty()) {
+                object_pose_publisher_->publish(target_pose);
             }
         }
     }
 
     //  return clustered four or less aruco 
-    void select_clustered_aruco(const std::vector<cv::Vec3d> &rvecs, std::vector<cv::Vec3d> &tvecs
-    std::vector<cv::Vec3d> &selected_rvecs, std::vector<cv::Vec3d>& selected_tvecs, std::vector<int>& selected_ids) {
+    void select_clustered_aruco(
+        const std::vector<int> &ids,
+        const std::vector<cv::Vec3d> &rvecs, 
+        const std::vector<cv::Vec3d> &tvecs,
+        std::vector<cv::Vec3d> &selected_rvecs, 
+        std::vector<cv::Vec3d>& selected_tvecs, 
+        std::vector<int>& selected_ids) {
         
         // 1. Find the "Anchor" (The marker closest to the camera)
         int closest_idx = -1;
@@ -167,7 +121,7 @@ private:
             cv::Vec3d anchor_pos = tvecs[closest_idx];
 
             for(size_t i = 0; i < tvecs.size(); i++) {
-                // Euclidean distance between marker i and the anchor
+                // Euclidean distance between marker i and the anchor (In optical frame)
                 double dist = cv::norm(tvecs[i] - anchor_pos);
 
                 if(dist <= cluster_radius) {
@@ -184,16 +138,114 @@ private:
 
             // Limit to 4
             int limit = std::min((int)candidates.size(), 4);
-            for(int i=0; i<limit; i++) {
+            int count = 0;
+                
+            for(int i=0; i<candidates.size(); i++) {
                 int idx = candidates[i].original_index;
+                if (ids[idx] != YELLOW_ID and ids[idx] != BLUE_ID) {
+                    continue;
+                }
                 selected_ids.push_back(ids[idx]);
                 selected_tvecs.push_back(tvecs[idx]);
                 selected_rvecs.push_back(rvecs[idx]);
+                count += 1;
+                if (count >= limit) {
+                    break;
+                }
             }
         }
     }
 
+    // Goal is to make the robot go perpendicular to the 4 clustered hazelnut
+    // PCA (Orientation) + Center (Translation)  
+    geometry_msgs::msg::PoseStamped compute_perpendicular_pose(
+        const std::vector<cv::Vec3d>& tvecs_camera_frame) {
+        // Initialize the final result_pose message 
 
+        geometry_msgs::msg::PoseStamped result_pose;
+
+        if (tvecs_camera_frame.empty()) return result_pose;
+
+        // 1. Transform points to base_footprint (Robot Frame)
+        // Transform to base_footprint first so easier to tell robot where to go
+        std::vector<cv::Point2d> floor_points;
+        double sum_x = 0, sum_y = 0;
+        for (const auto& t : tvecs_camera_frame) {
+            geometry_msgs::msg::PointStamped pt_cam, pt_base;
+            pt_cam.header.frame_id = "camera_color_optical_frame";
+            pt_cam.header.stamp = rclcpp::Time(0); // Use latest
+            pt_cam.point.x = t[0];
+            pt_cam.point.y = t[1];
+            pt_cam.point.z = t[2];
+
+            try {
+                // transform pt_cam -> pt_base, frame_id becomes base_footprint
+                // 0.1 second patience to wait for data delay
+                tf_buffer_->transform(pt_cam, pt_base, "base_footprint", tf2::durationFromSec(0.1));
+                floor_points.push_back(cv::Point2d(pt_base.point.x, pt_base.point.y));
+                sum_x += pt_base.point.x;
+                sum_y += pt_base.point.y;
+            } catch (tf2::TransformException &ex) {
+                RCLCPP_WARN(this->get_logger(), "Point transform failed: %s", ex.what());
+                return result_pose; 
+            }
+        }
+
+        if(floor_points.size() < 2) return result_pose;
+
+        result_pose.header.frame_id = "base_footprint";
+        result_pose.header.stamp = this->get_clock()->now();
+
+        // 2. Calculate Center (Target Position)
+        double center_x = sum_x / floor_points.size();
+        double center_y = sum_y / floor_points.size();
+
+        // 3. PCA for Line Direction
+        // Needs matrix as input, so transform std::vector -> cv::Mat
+        cv::Mat data_pts(floor_points.size(), 2, CV_64F);
+        for(size_t i=0; i<floor_points.size(); i++) {
+            data_pts.at<double>(i, 0) = floor_points[i].x;
+            data_pts.at<double>(i, 1) = floor_points[i].y;
+        }
+        cv::PCA pca_analysis(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
+
+        // Line Vector (dx, dy)
+        // eigenvector row = 0 is primary eigenvector
+        // (0,0) x component, (0,1) y component
+        double line_dx = pca_analysis.eigenvectors.at<double>(0, 0);
+        double line_dy = pca_analysis.eigenvectors.at<double>(0, 1);
+
+        // 4. Calculate Perpendicular Vector (Normal)
+        // Rotate line vector by 90 degrees: (x, y) -> (-y, x)
+        double perp_dx = -line_dy;
+        double perp_dy = line_dx;
+
+        // 5. "Face the ArUco" Check (Dot Product)
+        // Vector from Robot(0,0) to Target(center_x, center_y) is just (center_x, center_y)
+        double dot_product = (perp_dx * center_x) + (perp_dy * center_y);
+
+        if (dot_product < 0) {
+            // If negative, our normal vector points AWAY from the blocks. Flip it.
+            perp_dx = -perp_dx;
+            perp_dy = -perp_dy;
+        }
+
+        // 6. Convert to Yaw Angle
+        double final_yaw = std::atan2(perp_dy, perp_dx);
+
+        // 7. Fill Result
+        result_pose.pose.position.x = center_x;
+        result_pose.pose.position.y = center_y;
+        result_pose.pose.position.z = 0.0; // Stay on floor
+
+        tf2::Quaternion q;
+        // This takes your calculated angle (Yaw) and calculates Quaternion (x, y, z, w). 
+        q.setRPY(0, 0, final_yaw);
+        q.normalize();
+        result_pose.pose.orientation = tf2::toMsg(q);
+
+        return result_pose;
+    }
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr object_pose_publisher_;
