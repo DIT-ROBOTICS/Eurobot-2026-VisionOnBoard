@@ -66,24 +66,26 @@ private:
         std::vector<std::vector<cv::Point2f>> corners, rejected;
 
         cv::aruco::detectMarkers(frame, dictionary_, corners, ids, detector_params_, rejected);
-
+        
+        
         // publish marker tfs
         // Pose Estimation (3D)
         if(ids.size() > 0){
-            std::vector<cv::Vec3d> rvecs, tvecs;
+            std::vector<cv::Vec3d> rvecs, tvecs, selected_rvecs, selected_tvecs;
             // tvecs: Traslation vector (X, Y, Z from camera center)
             // rvecs: (Rotation Vectors): Orientation using Rodrigues notation.
             cv::aruco::estimatePoseSingleMarkers(corners, MARKER_LENGTH, camera_matrix_, dist_coeffs_, rvecs, tvecs);
-            cv::Vec3d rvecs_obj, tvecs_obj;
+            std::vector<int> selected_id;
+
+            select_clustered_aruco(rvecs, tvecs, selected_rvecs, selected_tvecs, selected_id);
+
             int cnt = 0;
-            for(size_t i=0; i<ids.size(); i++){
+            for(size_t i=0; i<selected_id.size(); i++){
                 if(ids[i] != BLUE_ID && ids[i] != YELLOW_ID) continue;
-                rvecs_obj += rvecs[i];
                 tvecs_obj += tvecs[i];
                 cnt++;
             }
             if(cnt > 0){
-                rvecs_obj /= cnt;
                 tvecs_obj /= cnt;
                 // Math Conversion (OpenCV to ROS TF2) OpenCV uses Matrices/Vectors; ROS uses Quaternions.
                 tf2::Vector3 t_cm(tvecs_obj[0], tvecs_obj[1], tvecs_obj[2]);
@@ -132,8 +134,66 @@ private:
                 }
             }
         }
-        
     }
+
+    //  return clustered four or less aruco 
+    void select_clustered_aruco(const std::vector<cv::Vec3d> &rvecs, std::vector<cv::Vec3d> &tvecs
+    std::vector<cv::Vec3d> &selected_rvecs, std::vector<cv::Vec3d>& selected_tvecs, std::vector<int>& selected_ids) {
+        
+        // 1. Find the "Anchor" (The marker closest to the camera)
+        int closest_idx = -1;
+        double min_z = std::numeric_limits<double>::max();
+
+        for (size_t i = 0; i < tvecs.size(); i++) {
+            // tvecs[i][2] is the depth (Z distance)
+            if(tvecs[i][2] < min_z) {
+                min_z = tvecs[i][2];
+                closest_idx = i;
+            }
+        }
+
+        if (closest_idx != -1) {
+            // 3. Cluster: Find everyone close to the Anchor
+            // Define a physical threshold (e.g., 3x marker size or fixed cm)
+            // If blocks are 5cm, and they are in a line of 4, the furthest is ~15-20cm away.
+            double cluster_radius = 0.3; // 30cm radius sphere around the closest block
+            
+            struct MarkerCandidate {
+                int original_index;
+                double dist_to_anchor;
+            };
+            std::vector<MarkerCandidate> candidates;
+
+            cv::Vec3d anchor_pos = tvecs[closest_idx];
+
+            for(size_t i = 0; i < tvecs.size(); i++) {
+                // Euclidean distance between marker i and the anchor
+                double dist = cv::norm(tvecs[i] - anchor_pos);
+
+                if(dist <= cluster_radius) {
+                    candidates.push_back({(int)i, dist});
+                }
+            }
+
+            // 4. Filter: Keep closest 4 (or less)
+            // Sort by distance to anchor (so we keep the tightest group)
+            std::sort(candidates.begin(), candidates.end(), 
+                [](const MarkerCandidate& a, const MarkerCandidate& b) {
+                    return a.dist_to_anchor < b.dist_to_anchor;
+                });
+
+            // Limit to 4
+            int limit = std::min((int)candidates.size(), 4);
+            for(int i=0; i<limit; i++) {
+                int idx = candidates[i].original_index;
+                selected_ids.push_back(ids[idx]);
+                selected_tvecs.push_back(tvecs[idx]);
+                selected_rvecs.push_back(rvecs[idx]);
+            }
+        }
+    }
+
+
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr object_pose_publisher_;
