@@ -8,8 +8,10 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Transform.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 class ObjectDetectorNode : public rclcpp::Node
 {
@@ -29,6 +31,8 @@ public:
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             // subscribes to /tf and /tf_static and store into tf_buffer_
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+        // visualization marker publisher (arrows, lines)
+        marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
         
         // Aruco setup
         dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
@@ -77,6 +81,52 @@ private:
             std::vector<int> selected_ids;
 
             select_clustered_aruco(ids, rvecs, tvecs, selected_rvecs, selected_tvecs, selected_ids);
+
+            // publish TF and arrow marker for each selected detected marker
+            for(size_t i=0; i<selected_tvecs.size(); ++i) {
+                // rvec -> rotation matrix -> quaternion
+                cv::Mat R;
+                cv::Mat rvec_mat = (cv::Mat1d(3,1) << selected_rvecs[i][0], selected_rvecs[i][1], selected_rvecs[i][2]);
+                cv::Rodrigues(rvec_mat, R);
+                tf2::Matrix3x3 m(
+                    R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2),
+                    R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2),
+                    R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2)
+                );
+                tf2::Quaternion q;
+                m.getRotation(q);
+                q.normalize();
+                geometry_msgs::msg::Quaternion quat_msg = tf2::toMsg(q);
+
+                // broadcast TF (camera -> aruco_ID)
+                geometry_msgs::msg::TransformStamped t;
+                t.header.stamp = this->get_clock()->now();
+                t.header.frame_id = "camera_color_optical_frame";
+                t.child_frame_id = std::string("aruco_") + std::to_string(selected_ids[i]);
+                t.transform.translation.x = selected_tvecs[i][0];
+                t.transform.translation.y = selected_tvecs[i][1];
+                t.transform.translation.z = selected_tvecs[i][2];
+                t.transform.rotation = quat_msg;
+                tf_broadcaster_->sendTransform(t);
+
+                // publish arrow marker for visualization
+                visualization_msgs::msg::Marker mkr;
+                mkr.header.stamp = this->get_clock()->now();
+                mkr.header.frame_id = "camera_color_optical_frame";
+                mkr.ns = "aruco";
+                mkr.id = selected_ids[i];
+                mkr.type = visualization_msgs::msg::Marker::ARROW;
+                mkr.action = visualization_msgs::msg::Marker::ADD;
+                mkr.pose.position.x = selected_tvecs[i][0];
+                mkr.pose.position.y = selected_tvecs[i][1];
+                mkr.pose.position.z = selected_tvecs[i][2];
+                mkr.pose.orientation = quat_msg;
+                mkr.scale.x = MARKER_LENGTH; // arrow length ~ marker length
+                mkr.scale.y = MARKER_LENGTH * 0.2;
+                mkr.scale.z = MARKER_LENGTH * 0.2;
+                mkr.color.r = 0.0f; mkr.color.g = 1.0f; mkr.color.b = 0.0f; mkr.color.a = 1.0f;
+                marker_pub_->publish(mkr);
+            }
 
             geometry_msgs::msg::PoseStamped target_pose = compute_perpendicular_pose(selected_tvecs);
             if (!target_pose.header.frame_id.empty()) {
@@ -209,7 +259,7 @@ private:
         }
         cv::PCA pca_analysis(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
 
-        // Line Vector (dx, dy)
+        // Normalized Line Vector (dx, dy) 
         // eigenvector row = 0 is primary eigenvector
         // (0,0) x component, (0,1) y component
         double line_dx = pca_analysis.eigenvectors.at<double>(0, 0);
@@ -244,11 +294,37 @@ private:
         q.normalize();
         result_pose.pose.orientation = tf2::toMsg(q);
 
+        // Publish PCA principal axis as a LINE_STRIP marker in base_footprint frame
+        if (marker_pub_) {
+            visualization_msgs::msg::Marker line;
+            line.header.frame_id = result_pose.header.frame_id;
+            line.header.stamp = this->get_clock()->now();
+            // .ns and .id is for rviz to know whether create new object or update old one
+            line.ns = "pca";
+            line.id = 100;
+            line.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            line.action = visualization_msgs::msg::Marker::ADD;
+            geometry_msgs::msg::Point p1, p2;
+            double len = 0.3; // half-length of PCA line to visualize
+            p1.x = center_x + line_dx * len;
+            p1.y = center_y + line_dy * len;
+            p1.z = 0.0;
+            p2.x = center_x - line_dx * len;
+            p2.y = center_y - line_dy * len;
+            p2.z = 0.0;
+            line.points.push_back(p1);
+            line.points.push_back(p2);
+            line.scale.x = 0.02; // line width
+            line.color.r = 1.0f; line.color.g = 0.0f; line.color.b = 0.0f; line.color.a = 1.0f;
+            marker_pub_->publish(line);
+        }
+
         return result_pose;
     }
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr object_pose_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

@@ -11,6 +11,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 
 include_directories(
@@ -28,6 +29,7 @@ ament_target_dependencies(object_detector
   tf2_geometry_msgs
   tf2_eigen
   geometry_msgs
+  visualization_msgs
 )
 
 target_link_libraries(object_detector

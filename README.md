@@ -27,6 +27,10 @@ ros2 launch realsense2_camera rs_launch.py
 ros2 run aruco_object object_detector
 ```
 ### Run rviz
+Before going in the container, run this in terminal to allow allow GUI window inside container
+```
+xhost +local:docker
+```
 Open RViz to visualize camera images and TF frames:
 ```bash
 ros2 run rviz2 rviz2
