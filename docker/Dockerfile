@@ -38,6 +38,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
         ros-humble-rviz2 \
         ros-humble-tf2-geometry-msgs \
         ros-humble-tf2-eigen \
+        ros-humble-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/*
 
 ARG USERNAME=vision
@@ -45,11 +46,16 @@ ARG USER_UID=1000
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
     apt-get update && apt-get install -y sudo \
-    && useradd -m -s /bin/bash -u $USER_UID -G sudo $USERNAME \
+    && useradd -m -s /bin/bash -u $USER_UID -G sudo,video,plugdev $USERNAME \
     && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
     && rm -rf /var/lib/apt/lists/*
 
 USER $USERNAME
+# Auto-source ROS Humble
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+
+# Auto-source your specific workspace (Recommended!)
+RUN echo "source /home/vision/vision_ws/install/setup.bash" >> ~/.bashrc
 
 COPY --chown=$USERNAME:$USERNAME \
      modules/install_realsense.sh /tmp/install_realsense.sh
