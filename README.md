@@ -26,7 +26,7 @@ ros2 launch realsense2_camera rs_launch.py
 ```bash
 ros2 run aruco_object object_detector
 ```
-### Run rivz
+### Run rviz
 Open RViz to visualize camera images and TF frames:
 ```bash
 ros2 run rviz2 rviz2
