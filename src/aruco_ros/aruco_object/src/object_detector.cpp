@@ -12,6 +12,7 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <cmath>
 
 class ObjectDetectorNode : public rclcpp::Node
 {
@@ -125,11 +126,11 @@ private:
                 mkr.scale.y = MARKER_LENGTH * 0.2;
                 mkr.scale.z = MARKER_LENGTH * 0.2;
                 mkr.color.r = 0.0f; mkr.color.g = 1.0f; mkr.color.b = 0.0f; mkr.color.a = 1.0f;
-                RCLCPP_INFO(this->get_logger(), "Publishing ARROW marker ns=%s id=%d frame=%s pos=(%.3f,%.3f,%.3f) scale=(%.3f,%.3f,%.3f) color=(%.3f,%.3f,%.3f,%.3f)",
-                    mkr.ns.c_str(), mkr.id, mkr.header.frame_id.c_str(),
-                    mkr.pose.position.x, mkr.pose.position.y, mkr.pose.position.z,
-                    mkr.scale.x, mkr.scale.y, mkr.scale.z,
-                    mkr.color.r, mkr.color.g, mkr.color.b, mkr.color.a);
+                // RCLCPP_INFO(this->get_logger(), "Publishing ARROW marker ns=%s id=%d frame=%s pos=(%.3f,%.3f,%.3f) scale=(%.3f,%.3f,%.3f) color=(%.3f,%.3f,%.3f,%.3f)",
+                //     mkr.ns.c_str(), mkr.id, mkr.header.frame_id.c_str(),
+                //     mkr.pose.position.x, mkr.pose.position.y, mkr.pose.position.z,
+                //     mkr.scale.x, mkr.scale.y, mkr.scale.z,
+                //     mkr.color.r, mkr.color.g, mkr.color.b, mkr.color.a);
                 marker_pub_->publish(mkr);
             }
 
@@ -287,6 +288,8 @@ private:
 
         // 6. Convert to Yaw Angle
         double final_yaw = std::atan2(perp_dy, perp_dx);
+        double final_yaw_deg = final_yaw * (180.0 / M_PI);
+        RCLCPP_INFO(this->get_logger(), "Cluster center=(%.3f,%.3f) yaw=%.3f", center_x, center_y, final_yaw_deg);
 
         // 7. Fill Result
         result_pose.pose.position.x = center_x;
@@ -321,12 +324,12 @@ private:
             line.points.push_back(p2);
             line.scale.x = 0.02; // line width
             line.color.r = 1.0f; line.color.g = 0.0f; line.color.b = 0.0f; line.color.a = 1.0f;
-            RCLCPP_INFO(this->get_logger(), "Publishing LINE_STRIP marker ns=%s id=%d frame=%s p1=(%.3f,%.3f,%.3f) p2=(%.3f,%.3f,%.3f) scale=%.3f color=(%.3f,%.3f,%.3f,%.3f)",
-                line.ns.c_str(), line.id, line.header.frame_id.c_str(),
-                p1.x, p1.y, p1.z,
-                p2.x, p2.y, p2.z,
-                line.scale.x,
-                line.color.r, line.color.g, line.color.b, line.color.a);
+            // RCLCPP_INFO(this->get_logger(), "Publishing LINE_STRIP marker ns=%s id=%d frame=%s p1=(%.3f,%.3f,%.3f) p2=(%.3f,%.3f,%.3f) scale=%.3f color=(%.3f,%.3f,%.3f,%.3f)",
+            //     line.ns.c_str(), line.id, line.header.frame_id.c_str(),
+            //     p1.x, p1.y, p1.z,
+            //     p2.x, p2.y, p2.z,
+            //     line.scale.x,
+            //     line.color.r, line.color.g, line.color.b, line.color.a);
             marker_pub_->publish(line);
         }
 
