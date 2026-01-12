@@ -1,0 +1,34 @@
+#pragma once
+
+#include <vector>
+#include <opencv2/opencv.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <rclcpp/rclcpp.hpp>
+
+class ProcessLogic {
+public:
+    ProcessLogic();
+    ProcessLogic(double marker_length, int blue_id, int yellow_id);
+
+    // Select clustered aruco markers (closest to anchor and matching allowed ids)
+    void select_clustered_aruco(
+        const std::vector<int> &ids,
+        const std::vector<cv::Vec3d> &rvecs,
+        const std::vector<cv::Vec3d> &tvecs,
+        std::vector<cv::Vec3d> &selected_rvecs,
+        std::vector<cv::Vec3d> &selected_tvecs,
+        std::vector<int> &selected_ids);
+
+    // Compute perpendicular pose from points already transformed to the robot frame
+    // `now` is used for marker timestamps; `marker_pub` may be nullptr to skip marker publishing.
+    geometry_msgs::msg::PoseStamped compute_perpendicular_pose_from_floor_points(
+        const std::vector<cv::Point2d> &floor_points,
+        const rclcpp::Time &now,
+        rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub);
+
+private:
+    double marker_length_;
+    int blue_id_;
+    int yellow_id_;
+};

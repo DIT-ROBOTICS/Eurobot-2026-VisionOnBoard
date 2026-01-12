@@ -19,7 +19,10 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-add_executable(object_detector src/object_detector.cpp)
+add_executable(object_detector
+  src/object_detector.cpp
+  src/process_logic.cpp
+)
 
 ament_target_dependencies(object_detector
   rclcpp
@@ -39,5 +42,10 @@ target_link_libraries(object_detector
 install(TARGETS
   object_detector
   DESTINATION lib/${PROJECT_NAME})
+
+# Install headers
+install(DIRECTORY include/
+  DESTINATION include
+)
 
 ament_package()
