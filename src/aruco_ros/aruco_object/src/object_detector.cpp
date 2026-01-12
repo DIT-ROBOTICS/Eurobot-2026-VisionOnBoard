@@ -129,6 +129,18 @@ void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
         floor_points, this->get_clock()->now(), marker_pub_);
 
     if (!target_pose.header.frame_id.empty()) {
+        // Log key results: number of selected markers, center and yaw
+        double cx = target_pose.pose.position.x;
+        double cy = target_pose.pose.position.y;
+        tf2::Quaternion q;
+        tf2::fromMsg(target_pose.pose.orientation, q);
+        double roll, pitch, yaw;
+        tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+        double yaw_deg = yaw * (180.0 / M_PI);
+
+        // selected_ids may be empty if none matched; print count
+        RCLCPP_INFO(this->get_logger(), "Selected markers=%zu center=(%.3f,%.3f) yaw=%.3fdeg", selected_ids.size(), cx, cy, yaw_deg);
+
         object_pose_publisher_->publish(target_pose);
     }
 }

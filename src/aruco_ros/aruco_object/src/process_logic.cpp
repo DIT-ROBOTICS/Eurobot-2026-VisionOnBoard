@@ -94,7 +94,7 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
 
     double final_yaw = std::atan2(perp_dy, perp_dx);
     double final_yaw_deg = final_yaw * (180.0 / M_PI);
-    RCLCPP_INFO(this->get_logger(), "Cluster center=(%.3f,%.3f) yaw=%.3f dot_product=%.3f", center_x, center_y, final_yaw_deg, dot_product);
+    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), "Cluster center=(%.3f,%.3f) yaw=%.3f dot_product=%.3f", center_x, center_y, final_yaw_deg, dot_product);
 
 
     result_pose.header.frame_id = "base_footprint";
