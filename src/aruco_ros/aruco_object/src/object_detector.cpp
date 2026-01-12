@@ -280,8 +280,9 @@ private:
         // Vector from Robot(0,0) to Target(center_x, center_y) is just (center_x, center_y)
         double dot_product = (perp_dx * center_x) + (perp_dy * center_y);
 
-        if (dot_product < 0) {
-            // If negative, our normal vector points AWAY from the blocks. Flip it.
+        if (dot_product > 0) {
+            // Because currently use backward camera. If positive, our normal vector points AWAY from the blocks. Flip it.
+            // Maybe need to use a rosparam for defining what's forward for each camera
             perp_dx = -perp_dx;
             perp_dy = -perp_dy;
         }
@@ -289,7 +290,7 @@ private:
         // 6. Convert to Yaw Angle
         double final_yaw = std::atan2(perp_dy, perp_dx);
         double final_yaw_deg = final_yaw * (180.0 / M_PI);
-        RCLCPP_INFO(this->get_logger(), "Cluster center=(%.3f,%.3f) yaw=%.3f", center_x, center_y, final_yaw_deg);
+        RCLCPP_INFO(this->get_logger(), "Cluster center=(%.3f,%.3f) yaw=%.3f dot_product=%.3f", center_x, center_y, final_yaw_deg, dot_product);
 
         // 7. Fill Result
         result_pose.pose.position.x = center_x;
