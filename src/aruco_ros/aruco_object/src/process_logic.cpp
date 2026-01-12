@@ -7,6 +7,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <cmath>
 
 ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id)
     : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id) {}
@@ -92,6 +93,9 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     if (dot_product > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
 
     double final_yaw = std::atan2(perp_dy, perp_dx);
+    double final_yaw_deg = final_yaw * (180.0 / M_PI);
+    RCLCPP_INFO(this->get_logger(), "Cluster center=(%.3f,%.3f) yaw=%.3f dot_product=%.3f", center_x, center_y, final_yaw_deg, dot_product);
+
 
     result_pose.header.frame_id = "base_footprint";
     result_pose.header.stamp = now;
