@@ -27,12 +27,6 @@ MyNode::MyNode()
     dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     detector_params_ = cv::aruco::DetectorParameters::create();
 
-    camera_matrix_ = (cv::Mat1d(3, 3) <<
-        433.85614013671875, 0.0, 418.23370361328125,
-        0.0, 433.11236572265625, 236.20132446289062,
-        0.0, 0.0, 1.0);
-    dist_coeffs_ = cv::Mat::zeros(1, 5, CV_64F);
-
     MARKER_LENGTH_ = this->declare_parameter<double>("marker_length", 0.03);
     BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
     YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
@@ -143,6 +137,35 @@ void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
 
         object_pose_publisher_->publish(target_pose);
     }
+}
+
+void MyNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+    // Optimization: If parameters don't change, we only need to read them once
+    if (intrinsics_received_) {
+        return; 
+    }
+
+    // 2. Convert Intrinsic Matrix (K) -> cv::Mat
+    // msg->k is a std::array<double, 9>
+    camera_matrix_ = cv::Mat(3, 3, CV_64F);
+    
+    // Manually copy data to ensure safety and correct ordering
+    // (Row-major order: Row 0, then Row 1, then Row 2)
+    for(int i=0; i<9; i++) {
+        camera_matrix_.at<double>(i/3, i%3) = msg->k[i];
+    }
+
+    // 3. Convert Distortion Coefficients (D) -> cv::Mat
+    // msg->d is a std::vector<double>
+    dist_coeffs_ = cv::Mat(1, msg->d.size(), CV_64F);
+    for(size_t i=0; i<msg->d.size(); i++) {
+        dist_coeffs_.at<double>(0, i) = msg->d[i];
+    }
+
+    intrinsics_received_ = true;
+
+    // Log to verify
+    RCLCPP_INFO(this->get_logger(), "Camera Info received. K[0,0]: %f", camera_matrix_.at<double>(0,0));
 }
 
 int main(int argc, char **argv)

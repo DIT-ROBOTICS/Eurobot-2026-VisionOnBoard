@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <tf2_ros/transform_broadcaster.h>
@@ -18,8 +19,10 @@ public:
 
 private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr object_pose_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
@@ -34,6 +37,7 @@ private:
     double MARKER_LENGTH_;
     int BLUE_ID_;
     int YELLOW_ID_;
+    bool intrinsics_received_ = false; // because we only need to send intrinsic once
 
     ProcessLogic logic_;
 };
