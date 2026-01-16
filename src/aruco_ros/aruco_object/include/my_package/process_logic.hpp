@@ -9,7 +9,7 @@
 class ProcessLogic {
 public:
     ProcessLogic();
-    ProcessLogic(double marker_length, int blue_id, int yellow_id);
+    ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius);
 
     // Select clustered aruco markers (closest to anchor and matching allowed ids)
     void select_clustered_aruco(
@@ -31,4 +31,5 @@ private:
     double marker_length_;
     int blue_id_;
     int yellow_id_;
+    double cluster_radius_;
 };

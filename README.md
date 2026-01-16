@@ -12,6 +12,18 @@ bash start_docker.sh
 bash start_vision_tmux.sh
 ```
 
+### Run Object Detector with Parameters
+You can run the object detector node with customizable parameters using the launch file:
+```bash
+ros2 launch aruco_object object_detector.launch.py
+```
+This will load parameters from `src/aruco_ros/aruco_object/config/params.yaml`.
+
+You can also override parameters from the command line:
+```bash
+ros2 launch aruco_object object_detector.launch.py cluster_radius:=0.5
+```
+
 ### Run rviz
 Before going in the container, run this in terminal to allow allow GUI window inside container
 ```

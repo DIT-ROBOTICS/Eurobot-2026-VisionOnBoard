@@ -35,6 +35,7 @@ private:
     cv::Mat camera_matrix_, dist_coeffs_;
 
     double MARKER_LENGTH_;
+    double CLUSTER_RADIUS_;
     int BLUE_ID_;
     int YELLOW_ID_;
     bool intrinsics_received_ = false; // because we only need to send intrinsic once

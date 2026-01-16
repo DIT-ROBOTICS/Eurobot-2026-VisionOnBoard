@@ -48,4 +48,9 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
+# Install launch and config
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

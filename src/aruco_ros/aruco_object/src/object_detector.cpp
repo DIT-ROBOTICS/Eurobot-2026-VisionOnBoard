@@ -28,13 +28,14 @@ MyNode::MyNode()
     detector_params_ = cv::aruco::DetectorParameters::create();
 
     MARKER_LENGTH_ = this->declare_parameter<double>("marker_length", 0.03);
+    CLUSTER_RADIUS_ = this->declare_parameter<double>("cluster_radius", 0.3);
     BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
     YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
 
     // configure logic with declared params
-    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_);
+    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_);
 
-    RCLCPP_INFO(this->get_logger(), "Object detector started.");
+    RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
 }
 
 void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {

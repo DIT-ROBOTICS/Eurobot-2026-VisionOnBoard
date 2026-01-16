@@ -9,11 +9,11 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <cmath>
 
-ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id)
-    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id) {}
+ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius)
+    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id), cluster_radius_(cluster_radius) {}
 
 ProcessLogic::ProcessLogic()
-    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1) {}
+    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1), cluster_radius_(0.3) {}
 
 void ProcessLogic::select_clustered_aruco(
     const std::vector<int> &ids,
@@ -22,6 +22,8 @@ void ProcessLogic::select_clustered_aruco(
     std::vector<cv::Vec3d> &selected_rvecs,
     std::vector<cv::Vec3d> &selected_tvecs,
     std::vector<int> &selected_ids) {
+
+    RCLCPP_INFO_ONCE(rclcpp::get_logger("ProcessLogic"), "Using cluster_radius: %.3f", cluster_radius_);
 
     int closest_idx = -1;
     double min_z = std::numeric_limits<double>::max();
@@ -35,15 +37,13 @@ void ProcessLogic::select_clustered_aruco(
 
     if (closest_idx == -1) return;
 
-    double cluster_radius = 0.3; // 30 cm
-
     struct MarkerCandidate { int original_index; double dist_to_anchor; };
     std::vector<MarkerCandidate> candidates;
 
     cv::Vec3d anchor_pos = tvecs[closest_idx];
     for (size_t i = 0; i < tvecs.size(); i++) {
         double dist = cv::norm(tvecs[i] - anchor_pos);
-        if (dist <= cluster_radius) candidates.push_back({(int)i, dist});
+        if (dist <= cluster_radius_) candidates.push_back({(int)i, dist});
     }
 
     std::sort(candidates.begin(), candidates.end(), [](const MarkerCandidate &a, const MarkerCandidate &b){
