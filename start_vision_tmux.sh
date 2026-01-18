@@ -35,7 +35,7 @@ sleep 1
 # Source ROS 2 Humble setup and local workspace setup
 tmux send-keys -t $SESSION_NAME:0.1 'export ROS_DOMAIN_ID=14 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash' C-m
 # Run the Aruco object detector node
-tmux send-keys -t $SESSION_NAME:0.1 'ros2 run aruco_object object_detector' C-m
+tmux send-keys -t $SESSION_NAME:0.1 'ros2 launch aruco_object object_detector.launch.py' C-m
 
 # Attach to the tmux session to view the output
 tmux attach-session -t $SESSION_NAME
