@@ -16,9 +16,14 @@ MyNode::MyNode()
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/camera/camera/color/image_rect_raw", 10,
         std::bind(&MyNode::image_callback, this, _1));
+    
+    camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "/camera/camera/color/camera_info", 10,
+        std::bind(&MyNode::camera_info_callback, this, _1));
 
     object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
     marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
+    
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());

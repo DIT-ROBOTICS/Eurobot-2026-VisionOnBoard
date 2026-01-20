@@ -136,8 +136,8 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     }
 
     // Normalize angle to -PI ~ PI
-    while (final_yaw < -M_PI) {final_yaw += 2.0 * M_PI}
-    while (final_yaw > M_PI) {final_yaw -= 2.0 * M_PI}
+    while (final_yaw < -M_PI) final_yaw += 2.0 * M_PI;
+    while (final_yaw > M_PI) final_yaw -= 2.0 * M_PI;
 
     double final_yaw_deg = final_yaw * (180.0 / M_PI);
     RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), 
