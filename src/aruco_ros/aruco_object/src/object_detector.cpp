@@ -32,9 +32,10 @@ MyNode::MyNode()
     BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
     YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
     CAMERA_POSITION_ = this->declare_parameter<std::string>("camera_position", "front");
+    SMOOTH_ALPHA_ = this->declare_parameter<double>("smooth_alpha", 0.3);
 
     // configure logic with declared params
-    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_, CAMERA_POSITION_);
+    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_, CAMERA_POSITION_, SMOOTH_ALPHA_);
 
     RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
 }

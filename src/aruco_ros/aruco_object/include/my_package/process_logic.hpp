@@ -9,7 +9,7 @@
 class ProcessLogic {
 public:
     ProcessLogic();
-    ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position = "front");
+    ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position = "front", double smooth_alpha = 0.3);
 
     // Select clustered aruco markers (closest to anchor and matching allowed ids)
     void select_clustered_aruco(
@@ -33,4 +33,9 @@ private:
     int yellow_id_;
     double cluster_radius_;
     std::string camera_position_;  // "front", "back", "left", "right"
+    
+    // Smoothing filter parameters
+    double smooth_alpha_;  // Exponential smoothing factor (0-1, lower = more smoothing)
+    geometry_msgs::msg::PoseStamped last_pose_;
+    bool first_pose_ = true;
 };

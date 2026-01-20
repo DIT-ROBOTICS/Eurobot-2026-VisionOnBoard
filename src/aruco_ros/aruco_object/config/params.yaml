@@ -6,3 +6,5 @@ object_detector:
     yellow_id: 47
     # Camera position: "front", "back", "left", or "right"
     camera_position: "front"
+    # Smoothing factor for pose filter (0.0-1.0, lower = more smoothing)
+    smooth_alpha: 0.3

@@ -9,11 +9,11 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <cmath>
 
-ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position)
-    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id), cluster_radius_(cluster_radius), camera_position_(camera_position) {}
+ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position, double smooth_alpha)
+    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id), cluster_radius_(cluster_radius), camera_position_(camera_position), smooth_alpha_(smooth_alpha) {}
 
 ProcessLogic::ProcessLogic()
-    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1), cluster_radius_(0.3), camera_position_("front") {}
+    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1), cluster_radius_(0.3), camera_position_("front"), smooth_alpha_(0.3) {}
 
 void ProcessLogic::select_clustered_aruco(
     const std::vector<int> &ids,
@@ -138,7 +138,7 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     // Normalize angle to -PI ~ PI
     while (final_yaw < -M_PI) {final_yaw += 2.0 * M_PI}
     while (final_yaw > M_PI) {final_yaw -= 2.0 * M_PI}
-    
+
     double final_yaw_deg = final_yaw * (180.0 / M_PI);
     RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), 
         "Cam: %s | Center=(%.2f,%.2f) | Normal=(%.2f,%.2f) | RobotYaw=%.1f deg", 
@@ -155,6 +155,37 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     q.normalize();
     result_pose.pose.orientation = tf2::toMsg(q);
 
+    // Apply exponential smoothing filter
+    if (!first_pose_) {
+        // Smooth position
+        result_pose.pose.position.x = smooth_alpha_ * result_pose.pose.position.x + 
+                                      (1.0 - smooth_alpha_) * last_pose_.pose.position.x;
+        result_pose.pose.position.y = smooth_alpha_ * result_pose.pose.position.y + 
+                                      (1.0 - smooth_alpha_) * last_pose_.pose.position.y;
+        
+        // Smooth orientation (convert to angle, smooth, convert back)
+        tf2::Quaternion q_last;
+        tf2::fromMsg(last_pose_.pose.orientation, q_last);
+        double roll_last, pitch_last, yaw_last;
+        tf2::Matrix3x3(q_last).getRPY(roll_last, pitch_last, yaw_last);
+        
+        // Smooth yaw (handle angle wrapping)
+        double yaw_diff = final_yaw - yaw_last;
+        while (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
+        while (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
+        double smoothed_yaw = yaw_last + smooth_alpha_ * yaw_diff;
+        
+        // Set smoothed orientation
+        q.setRPY(0, 0, smoothed_yaw);
+        q.normalize();
+        result_pose.pose.orientation = tf2::toMsg(q);
+    } else {
+        first_pose_ = false;
+    }
+    
+    // Store for next iteration
+    last_pose_ = result_pose;
+
     // Publish Visualization Marker (Optional: Show the calculated approach vector)
     if (marker_pub) {
         visualization_msgs::msg::Marker arrow;
@@ -167,12 +198,14 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
         
         // Start point (Robot/Cluster Center)
         geometry_msgs::msg::Point p1, p2;
-        p1.x = center_x; p1.y = center_y; p1.z = 0.0;
+        p1.x = result_pose.pose.position.x; 
+        p1.y = result_pose.pose.position.y; 
+        p1.z = 0.0;
         
         // End point (pointing into the wall)
         double len = 0.5;
-        p2.x = center_x + perp_dx * len; 
-        p2.y = center_y + perp_dy * len; 
+        p2.x = result_pose.pose.position.x + perp_dx * len; 
+        p2.y = result_pose.pose.position.y + perp_dy * len; 
         p2.z = 0.0;
         
         arrow.points.push_back(p1);

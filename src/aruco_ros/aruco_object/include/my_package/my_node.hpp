@@ -39,6 +39,7 @@ private:
     int BLUE_ID_;
     int YELLOW_ID_;
     std::string CAMERA_POSITION_;
+    double SMOOTH_ALPHA_;
     bool intrinsics_received_ = false; // because we only need to send intrinsic once
 
     ProcessLogic logic_;
