@@ -4,3 +4,5 @@ object_detector:
     cluster_radius: 0.2
     blue_id: 36
     yellow_id: 47
+    # Camera position: "front", "back", "left", or "right"
+    camera_position: "front"

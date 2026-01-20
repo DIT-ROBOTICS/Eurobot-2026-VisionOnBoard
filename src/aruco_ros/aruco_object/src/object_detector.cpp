@@ -31,9 +31,10 @@ MyNode::MyNode()
     CLUSTER_RADIUS_ = this->declare_parameter<double>("cluster_radius", 0.3);
     BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
     YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
+    CAMERA_POSITION_ = this->declare_parameter<std::string>("camera_position", "front");
 
     // configure logic with declared params
-    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_);
+    logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_, CAMERA_POSITION_);
 
     RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
 }
@@ -83,23 +84,6 @@ void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
         t.transform.translation.z = selected_tvecs[i][2];
         t.transform.rotation = quat_msg;
         tf_broadcaster_->sendTransform(t);
-
-        visualization_msgs::msg::Marker mkr;
-        mkr.header.stamp = this->get_clock()->now();
-        mkr.header.frame_id = "camera_color_optical_frame";
-        mkr.ns = "aruco";
-        mkr.id = selected_ids[i];
-        mkr.type = visualization_msgs::msg::Marker::ARROW;
-        mkr.action = visualization_msgs::msg::Marker::ADD;
-        mkr.pose.position.x = selected_tvecs[i][0];
-        mkr.pose.position.y = selected_tvecs[i][1];
-        mkr.pose.position.z = selected_tvecs[i][2];
-        mkr.pose.orientation = quat_msg;
-        mkr.scale.x = MARKER_LENGTH_;
-        mkr.scale.y = MARKER_LENGTH_ * 0.2;
-        mkr.scale.z = MARKER_LENGTH_ * 0.2;
-        mkr.color.r = 0.0f; mkr.color.g = 1.0f; mkr.color.b = 0.0f; mkr.color.a = 1.0f;
-        marker_pub_->publish(mkr);
     }
 
     // Transform selected points into base_footprint and compute perpendicular pose

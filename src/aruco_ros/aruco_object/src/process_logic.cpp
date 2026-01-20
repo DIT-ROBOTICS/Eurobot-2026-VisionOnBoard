@@ -9,11 +9,11 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <cmath>
 
-ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius)
-    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id), cluster_radius_(cluster_radius) {}
+ProcessLogic::ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position)
+    : marker_length_(marker_length), blue_id_(blue_id), yellow_id_(yellow_id), cluster_radius_(cluster_radius), camera_position_(camera_position) {}
 
 ProcessLogic::ProcessLogic()
-    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1), cluster_radius_(0.3) {}
+    : marker_length_(0.0), blue_id_(-1), yellow_id_(-1), cluster_radius_(0.3), camera_position_("front") {}
 
 void ProcessLogic::select_clustered_aruco(
     const std::vector<int> &ids,
@@ -89,13 +89,60 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     double perp_dx = -line_dy;
     double perp_dy = line_dx;
 
-    double dot_product = (perp_dx * center_x) + (perp_dy * center_y);
-    if (dot_product > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+    // 3. Adjust orientation based on Camera Position to minimize robot rotation
+    double final_yaw = 0.0;
+    double perp_angle = 0.0;
 
-    double final_yaw = std::atan2(perp_dy, perp_dx);
+    if (camera_position_ == "left") {
+        // Left Camera looks at +Y.
+        // We want the normal pointing INTO the wall (towards +Y).
+        if (perp_dy < 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+        
+        perp_angle = std::atan2(perp_dy, perp_dx);
+        
+        // Robot Yaw = Wall Normal - Camera Offset (+90 deg) 
+        // This allows the robot to stay straight (Yaw 0) if the wall is directly to the left.
+        final_yaw = perp_angle - M_PI_2; 
+
+    } else if (camera_position_ == "right") {
+        // Right Camera looks at -Y.
+        // We want the normal pointing INTO the wall (towards -Y).
+        if (perp_dy > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+        
+        perp_angle = std::atan2(perp_dy, perp_dx);
+
+        // Robot Yaw = Wall Normal - Camera Offset (-90 deg)
+        // This allows the robot to stay straight (Yaw 0) if the wall is directly to the right.
+        final_yaw = perp_angle + M_PI_2;
+
+    } else if (camera_position_ == "back") {
+        // Back Camera looks at -X.
+        // We want normal pointing -X (Into wall behind us).
+        if (perp_dx > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+        
+        perp_angle = std::atan2(perp_dy, perp_dx);
+        
+        // Robot Yaw = Wall Normal - Camera Offset (180 deg)
+        // If we are backing up to a wall, we want Yaw to be 0 (or 180 depending on your controller).
+        // Usually, to face AWAY from the wall, Yaw matches the normal + 180.
+        final_yaw = perp_angle + M_PI; 
+
+    } else {
+        // Front Camera (Default) looks at +X
+        // We want normal pointing +X
+        if (perp_dx < 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+        
+        final_yaw = std::atan2(perp_dy, perp_dx);
+    }
+
+    // Normalize angle to -PI ~ PI
+    while (final_yaw < -M_PI) {final_yaw += 2.0 * M_PI}
+    while (final_yaw > M_PI) {final_yaw -= 2.0 * M_PI}
+    
     double final_yaw_deg = final_yaw * (180.0 / M_PI);
-    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), "Cluster center=(%.3f,%.3f) yaw=%.3f dot_product=%.3f", center_x, center_y, final_yaw_deg, dot_product);
-
+    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), 
+        "Cam: %s | Center=(%.2f,%.2f) | Normal=(%.2f,%.2f) | RobotYaw=%.1f deg", 
+        camera_position_.c_str(), center_x, center_y, perp_dx, perp_dy, final_yaw_deg);
 
     result_pose.header.frame_id = "base_footprint";
     result_pose.header.stamp = now;
@@ -108,24 +155,31 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     q.normalize();
     result_pose.pose.orientation = tf2::toMsg(q);
 
-    // Publish PCA principal axis as a LINE_STRIP marker if requested
+    // Publish Visualization Marker (Optional: Show the calculated approach vector)
     if (marker_pub) {
-        visualization_msgs::msg::Marker line;
-        line.header.frame_id = result_pose.header.frame_id;
-        line.header.stamp = now;
-        line.ns = "pca";
-        line.id = 100;
-        line.type = visualization_msgs::msg::Marker::LINE_STRIP;
-        line.action = visualization_msgs::msg::Marker::ADD;
+        visualization_msgs::msg::Marker arrow;
+        arrow.header.frame_id = result_pose.header.frame_id;
+        arrow.header.stamp = now;
+        arrow.ns = "approach_vector";
+        arrow.id = 101;
+        arrow.type = visualization_msgs::msg::Marker::ARROW;
+        arrow.action = visualization_msgs::msg::Marker::ADD;
+        
+        // Start point (Robot/Cluster Center)
         geometry_msgs::msg::Point p1, p2;
-        double len = 0.3;
-        p1.x = center_x + line_dx * len; p1.y = center_y + line_dy * len; p1.z = 0.0;
-        p2.x = center_x - line_dx * len; p2.y = center_y - line_dy * len; p2.z = 0.0;
-        line.points.push_back(p1);
-        line.points.push_back(p2);
-        line.scale.x = 0.02;
-        line.color.r = 1.0f; line.color.g = 0.0f; line.color.b = 0.0f; line.color.a = 1.0f;
-        marker_pub->publish(line);
+        p1.x = center_x; p1.y = center_y; p1.z = 0.0;
+        
+        // End point (pointing into the wall)
+        double len = 0.5;
+        p2.x = center_x + perp_dx * len; 
+        p2.y = center_y + perp_dy * len; 
+        p2.z = 0.0;
+        
+        arrow.points.push_back(p1);
+        arrow.points.push_back(p2);
+        arrow.scale.x = 0.05; arrow.scale.y = 0.1; arrow.scale.z = 0.1;
+        arrow.color.r = 0.0f; arrow.color.g = 1.0f; arrow.color.b = 0.0f; arrow.color.a = 1.0f;
+        marker_pub->publish(arrow);
     }
 
     return result_pose;

@@ -9,7 +9,7 @@
 class ProcessLogic {
 public:
     ProcessLogic();
-    ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius);
+    ProcessLogic(double marker_length, int blue_id, int yellow_id, double cluster_radius, std::string camera_position = "front");
 
     // Select clustered aruco markers (closest to anchor and matching allowed ids)
     void select_clustered_aruco(
@@ -32,4 +32,5 @@ private:
     int blue_id_;
     int yellow_id_;
     double cluster_radius_;
+    std::string camera_position_;  // "front", "back", "left", "right"
 };
