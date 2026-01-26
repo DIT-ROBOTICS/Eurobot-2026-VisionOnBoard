@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>aruco_cluster_detect</name>
+  <name>aruco_object</name>
   <version>0.0.2</version>
   <description>ROS2 C++ node for detecting ArUco markers and publishing object pose.</description>
 
@@ -11,6 +11,7 @@
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+
   <depend>cv_bridge</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>

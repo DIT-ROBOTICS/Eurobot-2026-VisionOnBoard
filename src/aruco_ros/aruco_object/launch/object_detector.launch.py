@@ -16,7 +16,7 @@ def generate_launch_description():
     )
 
     object_detector_node = Node(
-        package='aruco_cluster_detect',
+        package='aruco_object',
         executable='aruco_detector_node',
         name='aruco_detector_node',
         parameters=[config_file],

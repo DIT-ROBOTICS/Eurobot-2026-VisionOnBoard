@@ -37,5 +37,13 @@ tmux send-keys -t $SESSION_NAME:0.1 'export ROS_DOMAIN_ID=14 && source /opt/ros/
 # Run the Aruco object detector node
 tmux send-keys -t $SESSION_NAME:0.1 'ros2 launch aruco_object object_detector.launch.py' C-m
 
+# Function to kill the session when script exits
+cleanup() {
+    tmux kill-session -t $SESSION_NAME
+}
+
+# Trap EXIT signal (happens when script ends or user detaches)
+trap cleanup EXIT
+
 # Attach to the tmux session to view the output
 tmux attach-session -t $SESSION_NAME
