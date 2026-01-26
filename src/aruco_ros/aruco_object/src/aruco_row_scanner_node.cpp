@@ -64,13 +64,13 @@ private:
             RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Seen %zu markers (need 4)", ids.size());
             return; // Ignore frame
         }
-
-        // Sort by X-coordinate
         struct Marker {
             int id;
             float x;
         };
+
         std::vector<Marker> sorted_markers;
+        // calculate center x of each marker
         for (size_t i = 0; i < ids.size(); ++i) {
             float cx = 0;
             for (const auto& p : corners[i]) cx += p.x;
@@ -78,6 +78,7 @@ private:
             sorted_markers.push_back({ids[i], cx});
         }
         
+        // sort by ascending x (left to right)
         std::sort(sorted_markers.begin(), sorted_markers.end(), 
             [](const Marker& a, const Marker& b) { return a.x < b.x; });
 
@@ -85,18 +86,10 @@ private:
         std::vector<int8_t> current_vote;
         bool all_valid_ids = true;
         
+        // iterate through all marker
         for (const auto& m : sorted_markers) {
-            // Check if ID is in our target list (It should be one of the known IDs for this game)
-            // Implementation detail: User implied target_ids are the ones we FLIP? 
-            // Or target_ids are the range of valid IDs? 
-            // Re-reading: "Get target_ids (The IDs for Blue/Yellow blocks)."
-            // "Compare each against self.team_color". 
-            // Assuming: If ID belongs to MY team -> 1? Or if ID needs flip -> 1?
-            // "Create a temporary array, e.g., [1, 0, 1, 0]."
-            // Let's assume: 1 means "Flip this" or "This is my color".
-            // If the user meant "If ID is in target_ids, put 1, else 0".
-            
             bool is_target = false;
+            // iterate through all target id
             for (int t_id : target_ids_) {
                 if (m.id == t_id) {
                     is_target = true;
@@ -119,15 +112,9 @@ private:
             if (check_consensus()) {
                  publish_result(vote_buffer_.front());
                  // Optional: task_completed_ = true; 
-                 // User said "Latch (Optional)", I'll leave it open for now or clear buffer to avoid spam?
-                 // "so you don't keep spamming the topic... while the robot drives away"
-                 // Let's add a small cooldown or just rely on robot moving away breaking the 4-check.
                  vote_buffer_.clear(); // Reset buffer after success to avoid rapid re-triggers
             } else {
-                // If mismatch, maybe unclear buffer? "The camera is struggling. Clear the buffer"
-                // Ideally we check if they are ALL the same. If 5 frames are different, we might keep sliding window?
-                // User said: "If Mismatch... Clear the buffer and try again."
-                // A strict sliding window is better than clearing fully, but let's follow instruction "Clear the buffer".
+                // A strict sliding window is better than clearing fully, TODO
                 if (!check_consensus()) {
                      vote_buffer_.clear();
                 }
