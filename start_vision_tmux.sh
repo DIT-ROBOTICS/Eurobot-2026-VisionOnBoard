@@ -37,12 +37,14 @@ tmux send-keys -t $SESSION_NAME:0.1 'export ROS_DOMAIN_ID=14 && source /opt/ros/
 # Run the Aruco object detector node
 tmux send-keys -t $SESSION_NAME:0.1 'ros2 launch aruco_object object_detector.launch.py' C-m
 
-# Create a new window for the scanner
-tmux new-window -t $SESSION_NAME -n 'scanner'
-tmux send-keys -t $SESSION_NAME:1 'docker exec -it vision-ws bash' C-m
+# Split the detector pane (pane 1) vertically to create a third pane for the scanner
+tmux split-window -v -t $SESSION_NAME:0.1
+
+# Send commands to the third pane (pane 2)
+tmux send-keys -t $SESSION_NAME:0.2 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t $SESSION_NAME:1 'export ROS_DOMAIN_ID=14 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash' C-m
-tmux send-keys -t $SESSION_NAME:1 'ros2 launch aruco_object scanner.launch.py' C-m
+tmux send-keys -t $SESSION_NAME:0.2 'export ROS_DOMAIN_ID=14 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash' C-m
+tmux send-keys -t $SESSION_NAME:0.2 'ros2 launch aruco_object scanner.launch.py' C-m
 
 # Function to kill the session when script exits
 cleanup() {

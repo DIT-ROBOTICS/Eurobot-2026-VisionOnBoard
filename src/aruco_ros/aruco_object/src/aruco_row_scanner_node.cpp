@@ -14,21 +14,18 @@ public:
     ArucoRowScannerNode() : Node("aruco_row_scanner") {
         // Parameters
         this->declare_parameter<std::string>("team_color", "yellow");
-        this->declare_parameter<std::vector<int64_t>>("blue_ids", {1, 2, 3}); // Placeholder defaults
-        this->declare_parameter<std::vector<int64_t>>("yellow_ids", {4, 5, 6}); // Placeholder defaults
+        this->declare_parameter<int64_t>("blue_id", 36);
+        this->declare_parameter<int64_t>("yellow_id", 47);
         this->declare_parameter<int>("votes_needed", 5);
 
         team_color_ = this->get_parameter("team_color").as_string();
         votes_needed_ = this->get_parameter("votes_needed").as_int();
 
-        std::vector<int64_t> ids = (team_color_ == "blue") ? 
-            this->get_parameter("blue_ids").as_integer_array() : 
-            this->get_parameter("yellow_ids").as_integer_array();
+        int64_t id = (team_color_ == "blue") ? 
+            this->get_parameter("blue_id").as_int() : 
+            this->get_parameter("yellow_id").as_int();
 
-        // Convert to set or simplify check logic
-        for (int64_t id : ids) {
-            target_ids_.push_back(static_cast<int>(id));
-        }
+        target_ids_.push_back(static_cast<int>(id));
 
         RCLCPP_INFO(this->get_logger(), "Scanner started for team: %s. Votes needed: %d", team_color_.c_str(), votes_needed_);
 

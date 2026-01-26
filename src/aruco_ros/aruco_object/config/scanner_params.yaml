@@ -6,8 +6,8 @@ aruco_row_scanner:
     # Target IDs (Placeholders, update with actual game rules)
     # IDs that trigger a "1" in the mask for the respective team
     # Note: ROS 2 params can be lists of integers
-    blue_ids: [1, 2, 3] 
-    yellow_ids: [4, 5, 6]
+    blue_id: 36
+    yellow_id: 47
     
     # Voting system: how many consistent frames needed
     votes_needed: 5
