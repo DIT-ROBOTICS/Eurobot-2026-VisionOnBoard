@@ -11,11 +11,11 @@
 #include <opencv2/aruco.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include "my_package/process_logic.hpp"
+#include "aruco_cluster_detect/process_logic.hpp"
 
-class MyNode : public rclcpp::Node {
+class CameraOnBoardNode : public rclcpp::Node {
 public:
-    MyNode();
+    CameraOnBoardNode();
 
 private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);

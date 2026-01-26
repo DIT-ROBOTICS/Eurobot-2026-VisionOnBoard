@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>aruco_object</name>
+  <name>aruco_cluster_detect</name>
   <version>0.0.2</version>
   <description>ROS2 C++ node for detecting ArUco markers and publishing object pose.</description>
 

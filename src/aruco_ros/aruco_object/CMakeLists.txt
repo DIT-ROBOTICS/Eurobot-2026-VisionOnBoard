@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(aruco_object)
+project(aruco_cluster_detect)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -19,12 +19,12 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-add_executable(object_detector
+add_executable(aruco_detector_node
   src/object_detector.cpp
   src/process_logic.cpp
 )
 
-ament_target_dependencies(object_detector
+ament_target_dependencies(aruco_detector_node
   rclcpp
   sensor_msgs
   cv_bridge
@@ -35,12 +35,12 @@ ament_target_dependencies(object_detector
   visualization_msgs
 )
 
-target_link_libraries(object_detector
+target_link_libraries(aruco_detector_node
   ${OpenCV_LIBRARIES}
 )
 
 install(TARGETS
-  object_detector
+  aruco_detector_node
   DESTINATION lib/${PROJECT_NAME})
 
 # Install headers

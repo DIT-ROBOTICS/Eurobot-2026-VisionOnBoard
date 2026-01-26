@@ -16,9 +16,9 @@ def generate_launch_description():
     )
 
     object_detector_node = Node(
-        package='aruco_object',
-        executable='object_detector',
-        name='object_detector',
+        package='aruco_cluster_detect',
+        executable='aruco_detector_node',
+        name='aruco_detector_node',
         parameters=[config_file],
         output='screen',
         arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')]

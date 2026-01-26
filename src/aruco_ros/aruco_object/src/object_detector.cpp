@@ -1,25 +1,25 @@
-#include "my_package/my_node.hpp"
+#include "aruco_cluster_detect/object_detector_node.hpp"
 
 #include <chrono>
 
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
-MyNode::MyNode()
-: Node("object_detector"), logic_(/*default constructed*/)
+CameraOnBoardNode::CameraOnBoardNode()
+: Node("aruco_detector_node"), logic_(/*default constructed*/)
 {
     using std::placeholders::_1;
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/camera/camera/color/image_rect_raw", 10,
-        std::bind(&MyNode::image_callback, this, _1));
+        std::bind(&CameraOnBoardNode::image_callback, this, _1));
     
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "/camera/camera/color/camera_info", 10,
-        std::bind(&MyNode::camera_info_callback, this, _1));
+        std::bind(&CameraOnBoardNode::camera_info_callback, this, _1));
 
     object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
     marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
@@ -45,7 +45,7 @@ MyNode::MyNode()
     RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
 }
 
-void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -130,7 +130,7 @@ void MyNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
     }
 }
 
-void MyNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+void CameraOnBoardNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
     // Optimization: If parameters don't change, we only need to read them once
     if (intrinsics_received_) {
         return; 
@@ -162,7 +162,7 @@ void MyNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr 
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<MyNode>();
+    auto node = std::make_shared<CameraOnBoardNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     cv::destroyAllWindows();
