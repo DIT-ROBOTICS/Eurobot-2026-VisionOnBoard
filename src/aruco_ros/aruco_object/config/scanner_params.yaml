@@ -1,0 +1,13 @@
+aruco_row_scanner:
+  ros__parameters:
+    # Team color: "yellow" or "blue" (determines which IDs are targets)
+    team_color: "yellow"
+    
+    # Target IDs (Placeholders, update with actual game rules)
+    # IDs that trigger a "1" in the mask for the respective team
+    # Note: ROS 2 params can be lists of integers
+    blue_ids: [1, 2, 3] 
+    yellow_ids: [4, 5, 6]
+    
+    # Voting system: how many consistent frames needed
+    votes_needed: 5
