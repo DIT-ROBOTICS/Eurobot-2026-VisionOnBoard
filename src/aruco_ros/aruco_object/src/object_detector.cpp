@@ -46,6 +46,10 @@ CameraOnBoardNode::CameraOnBoardNode()
 }
 
 void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+    if (!intrinsics_received_) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Waiting for camera intrinsics...");
+        return;
+    }
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);

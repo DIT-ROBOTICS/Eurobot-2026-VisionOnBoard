@@ -21,9 +21,10 @@ public:
         team_color_ = this->get_parameter("team_color").as_string();
         votes_needed_ = this->get_parameter("votes_needed").as_int();
 
+        // logic: if team_color is blue, use yellow_id, else use blue_id
         int64_t id = (team_color_ == "blue") ? 
-            this->get_parameter("blue_id").as_int() : 
-            this->get_parameter("yellow_id").as_int();
+            this->get_parameter("yellow_id").as_int() : 
+            this->get_parameter("blue_id").as_int();
 
         target_ids_.push_back(static_cast<int>(id));
 
@@ -60,6 +61,7 @@ private:
 
         // Phase 2: Perfect 4 Check
         if (ids.size() != 4) {
+            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Seen %zu markers (need 4)", ids.size());
             return; // Ignore frame
         }
 
@@ -103,6 +105,9 @@ private:
             }
             current_vote.push_back(is_target ? 1 : 0);
         }
+
+        RCLCPP_ERROR(this->get_logger(), "Current vote: [%d, %d, %d, %d]", 
+            current_vote[0], current_vote[1], current_vote[2], current_vote[3]);
 
         // Phase 3: Voting
         vote_buffer_.push_back(current_vote);
