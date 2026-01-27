@@ -66,21 +66,21 @@ private:
         }
         struct Marker {
             int id;
-            float x;
+            float y;
         };
 
         std::vector<Marker> sorted_markers;
-        // calculate center x of each marker
+        // calculate center y of each marker
         for (size_t i = 0; i < ids.size(); ++i) {
-            float cx = 0;
-            for (const auto& p : corners[i]) cx += p.x;
-            cx /= 4.0;
-            sorted_markers.push_back({ids[i], cx});
+            float cy = 0;
+            for (const auto& p : corners[i]) cy += p.y;
+            cy /= 4.0;
+            sorted_markers.push_back({ids[i], cy});
         }
         
-        // sort by ascending x (left to right)
+        // sort by ascending y (small to large) -> Top to Bottom in image
         std::sort(sorted_markers.begin(), sorted_markers.end(), 
-            [](const Marker& a, const Marker& b) { return a.x < b.x; });
+            [](const Marker& a, const Marker& b) { return a.y < b.y; });
 
         // Generate Instant Array
         std::vector<int8_t> current_vote;

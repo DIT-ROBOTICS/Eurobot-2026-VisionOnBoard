@@ -9,7 +9,7 @@ def generate_launch_description():
     config = os.path.join(
         get_package_share_directory(pkg_name),
         'config',
-        'scanner_params.yaml'
+        'combined_params.yaml'
     )
 
     return LaunchDescription([
