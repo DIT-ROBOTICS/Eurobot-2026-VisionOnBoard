@@ -138,14 +138,16 @@ def launch_setup(context, params, param_name_suffix=''):
             emulate_tty=True,
             )
     ]
-# '-0.07', '0.1', '0.32', '0.227', '0.524', '-1.571',
+# front camera static TF: '-0.07', '0.1, '0.32', '0.227', '0.524', '-1.571',
+# back camera static TF: '-0.07', '0.1', '0.32', '3.367', '0.524', '-1.571',
 def launch_map_transform_publisher_node(context: LaunchContext):
     node = launch_ros.actions.Node(
         name='map_transform_publisher',
         package="tf2_ros",
         executable="static_transform_publisher",
         arguments=[
-            '-0.07', '0.1', '0.32', '3.367', '0.524', '-1.571',
+            # 現在用前面相機的 static TF
+            '-0.07', '0.1', '0.32', '0.227', '0.524', '-1.571',
             'base_footprint',
             context.launch_configurations['camera_name'] + '_link'
         ]

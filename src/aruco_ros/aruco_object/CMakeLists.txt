@@ -11,6 +11,8 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 
 include_directories(
@@ -18,9 +20,12 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-add_executable(object_detector src/object_detector.cpp)
+add_executable(aruco_detector_node
+  src/object_detector.cpp
+  src/process_logic.cpp
+)
 
-ament_target_dependencies(object_detector
+ament_target_dependencies(aruco_detector_node
   rclcpp
   sensor_msgs
   cv_bridge
@@ -28,14 +33,25 @@ ament_target_dependencies(object_detector
   tf2_geometry_msgs
   tf2_eigen
   geometry_msgs
+  visualization_msgs
 )
 
-target_link_libraries(object_detector
+target_link_libraries(aruco_detector_node
   ${OpenCV_LIBRARIES}
 )
 
 install(TARGETS
-  object_detector
+  aruco_detector_node
   DESTINATION lib/${PROJECT_NAME})
+
+# Install headers
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+# Install launch and config
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ament_package()

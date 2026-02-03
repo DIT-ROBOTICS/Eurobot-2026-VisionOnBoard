@@ -4,29 +4,31 @@ This repository contains the vision system for the Eurobot 2026 competition.
 ### Build image and container
 ```bash
 cd docker/
-docker compose up -d
+bash start_docker.sh
 ```
-### Build workspace
-Attach to the running container:
+
+### Launch realsense node and hazelnut detector (objector_detector.cpp) together
+```
+bash start_vision_tmux.sh
+```
+
+### Run Object Detector with Parameters
+You can run the object detector node with customizable parameters using the launch file:
 ```bash
-docker exec -it vision-ws bash
+ros2 launch aruco_object object_detector.launch.py
 ```
-Inside the container, build the workspace:
+This will load parameters from `src/aruco_ros/aruco_object/config/params.yaml`.
+
+You can also override parameters from the command line:
 ```bash
-source /opt/ros/humble/setup.bash
-colcon build
-source install/setup.bash
+ros2 launch aruco_object object_detector.launch.py cluster_radius:=0.5
 ```
-### Launch realsense node
-Make sure the RealSense camera is connected via USB to your computer, then run:
-```bash
-ros2 launch realsense2_camera rs_launch.py
+
+### Run rviz
+Before going in the container, run this in terminal to allow allow GUI window inside container
 ```
-### Run aruco detect node of hazelnut
-```bash
-ros2 run aruco_object object_detector
+xhost +local:docker
 ```
-### Run rivz
 Open RViz to visualize camera images and TF frames:
 ```bash
 ros2 run rviz2 rviz2

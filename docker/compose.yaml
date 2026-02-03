@@ -17,7 +17,7 @@ services:
       - DISPLAY=${DISPLAY}
       - ROS_LOCALHOST_ONLY=0
       - ROS_DOMAIN_ID=0
-      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       - ROS_WORKSPACE=/home/vision/vision_ws
     volumes:
       - /dev:/dev
