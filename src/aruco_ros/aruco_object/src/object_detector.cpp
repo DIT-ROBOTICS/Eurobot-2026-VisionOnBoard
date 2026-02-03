@@ -42,6 +42,15 @@ CameraOnBoardNode::CameraOnBoardNode()
     // configure logic with declared params
     logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_, CAMERA_POSITION_, SMOOTH_ALPHA_);
 
+    // Pre-calculate marker object points (Center at 0,0,0)
+    double half_len = MARKER_LENGTH_ * 0.5;
+    marker_obj_points_ = {
+        cv::Point3f(-half_len,  half_len, 0),
+        cv::Point3f( half_len,  half_len, 0),
+        cv::Point3f( half_len, -half_len, 0),
+        cv::Point3f(-half_len, -half_len, 0)
+    };
+
     RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
 }
 
@@ -65,51 +74,79 @@ void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 
     if (ids.empty()) return;
 
+    // Optimize TF lookup: Get transform ONCE for this frame timestamp
+    geometry_msgs::msg::TransformStamped cam_to_base;
+    try {
+        cam_to_base = tf_buffer_->lookupTransform("base_footprint", "camera_color_optical_frame", 
+                                                 msg->header.stamp, 
+                                                 rclcpp::Duration::from_seconds(0.1)); 
+    } catch (tf2::TransformException &ex) {
+        RCLCPP_WARN(this->get_logger(), "TF lookup failed: %s", ex.what());
+        return; 
+    }
+
+    cv::Mat gray;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+
     std::vector<cv::Vec3d> rvecs, tvecs;
-    cv::aruco::estimatePoseSingleMarkers(corners, MARKER_LENGTH_, camera_matrix_, dist_coeffs_, rvecs, tvecs);
+    rvecs.reserve(ids.size());
+    tvecs.reserve(ids.size());
+
+    for (size_t i = 0; i < ids.size(); ++i) {
+        // 1. Sub-pixel refinement
+        cv::cornerSubPix(
+            gray, corners[i],
+            cv::Size(5, 5),
+            cv::Size(-1, -1),
+            cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1)
+        );
+
+        // 2. Solve PnP using pre-calculated object points
+        cv::Vec3d rvec, tvec;
+        cv::solvePnP(marker_obj_points_, corners[i], camera_matrix_, dist_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE_SQUARE);
+        
+        rvecs.push_back(rvec);
+        tvecs.push_back(tvec);
+    }
 
     std::vector<cv::Vec3d> selected_rvecs, selected_tvecs;
     std::vector<int> selected_ids;
     logic_.select_clustered_aruco(ids, rvecs, tvecs, selected_rvecs, selected_tvecs, selected_ids);
 
-    // publish TF and arrow markers for selected markers (in camera frame)
-    for (size_t i = 0; i < selected_tvecs.size(); ++i) {
-        cv::Mat R;
-        cv::Mat rvec_mat = (cv::Mat1d(3,1) << selected_rvecs[i][0], selected_rvecs[i][1], selected_rvecs[i][2]);
-        cv::Rodrigues(rvec_mat, R);
-        tf2::Matrix3x3 m(
-            R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2),
-            R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2),
-            R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2)
-        );
-        tf2::Quaternion q; m.getRotation(q); q.normalize();
-        geometry_msgs::msg::Quaternion quat_msg = tf2::toMsg(q);
+    // // publish TF and arrow markers for selected markers (in camera frame)
+    // for (size_t i = 0; i < selected_tvecs.size(); ++i) {
+    //     cv::Mat R;
+    //     cv::Mat rvec_mat = (cv::Mat1d(3,1) << selected_rvecs[i][0], selected_rvecs[i][1], selected_rvecs[i][2]);
+    //     cv::Rodrigues(rvec_mat, R);
+    //     tf2::Matrix3x3 m(
+    //         R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2),
+    //         R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2),
+    //         R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2)
+    //     );
+    //     tf2::Quaternion q; m.getRotation(q); q.normalize();
+    //     geometry_msgs::msg::Quaternion quat_msg = tf2::toMsg(q);
 
-        geometry_msgs::msg::TransformStamped t;
-        t.header.stamp = this->get_clock()->now();
-        t.header.frame_id = "camera_color_optical_frame";
-        t.child_frame_id = std::string("aruco_") + std::to_string(selected_ids[i]);
-        t.transform.translation.x = selected_tvecs[i][0];
-        t.transform.translation.y = selected_tvecs[i][1];
-        t.transform.translation.z = selected_tvecs[i][2];
-        t.transform.rotation = quat_msg;
-        tf_broadcaster_->sendTransform(t);
-    }
+    //     geometry_msgs::msg::TransformStamped t;
+    //     t.header.stamp = this->get_clock()->now();
+    //     t.header.frame_id = "camera_color_optical_frame";
+    //     t.child_frame_id = std::string("aruco_") + std::to_string(selected_ids[i]);
+    //     t.transform.translation.x = selected_tvecs[i][0];
+    //     t.transform.translation.y = selected_tvecs[i][1];
+    //     t.transform.translation.z = selected_tvecs[i][2];
+    //     t.transform.rotation = quat_msg;
+    //     tf_broadcaster_->sendTransform(t);
+    // }
 
-    // Transform selected points into base_footprint and compute perpendicular pose
+    // Transform selected points into base_footprint using the Cached Transform
     std::vector<cv::Point2d> floor_points;
     for (const auto &tvec : selected_tvecs) {
-        geometry_msgs::msg::PointStamped pt_cam, pt_base;
-        pt_cam.header.frame_id = "camera_color_optical_frame";
-        pt_cam.header.stamp = rclcpp::Time(0);
-        pt_cam.point.x = tvec[0]; pt_cam.point.y = tvec[1]; pt_cam.point.z = tvec[2];
-        try {
-            tf_buffer_->transform(pt_cam, pt_base, "base_footprint", tf2::durationFromSec(0.1));
-            floor_points.emplace_back(pt_base.point.x, pt_base.point.y);
-        } catch (tf2::TransformException &ex) {
-            RCLCPP_WARN(this->get_logger(), "Point transform failed: %s", ex.what());
-            return;
-        }
+        geometry_msgs::msg::Point pt_cam;
+        pt_cam.x = tvec[0]; pt_cam.y = tvec[1]; pt_cam.z = tvec[2];
+        
+        geometry_msgs::msg::Point pt_base;
+        tf2::doTransform(pt_cam, pt_base, cam_to_base);
+        
+        floor_points.emplace_back(pt_base.x, pt_base.y);
     }
 
     if (floor_points.size() < 2) return;
@@ -139,24 +176,18 @@ void CameraOnBoardNode::camera_info_callback(const sensor_msgs::msg::CameraInfo:
     if (intrinsics_received_) {
         return; 
     }
-
-    // 2. Convert Intrinsic Matrix (K) -> cv::Mat
-    // msg->k is a std::array<double, 9>
+    // Unpack the camera matrix from camera_info
     camera_matrix_ = cv::Mat(3, 3, CV_64F);
-    
-    // Manually copy data to ensure safety and correct ordering
-    // (Row-major order: Row 0, then Row 1, then Row 2)
+
     for(int i=0; i<9; i++) {
         camera_matrix_.at<double>(i/3, i%3) = msg->k[i];
     }
 
-    // 3. Convert Distortion Coefficients (D) -> cv::Mat
-    // msg->d is a std::vector<double>
     dist_coeffs_ = cv::Mat(1, msg->d.size(), CV_64F);
+
     for(size_t i=0; i<msg->d.size(); i++) {
         dist_coeffs_.at<double>(0, i) = msg->d[i];
     }
-
     intrinsics_received_ = true;
 
     // Log to verify

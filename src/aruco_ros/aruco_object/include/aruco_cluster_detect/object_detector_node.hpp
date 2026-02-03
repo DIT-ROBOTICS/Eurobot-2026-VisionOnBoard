@@ -43,4 +43,6 @@ private:
     bool intrinsics_received_ = false; // because we only need to send intrinsic once
 
     ProcessLogic logic_;
+
+    std::vector<cv::Point3f> marker_obj_points_;
 };
