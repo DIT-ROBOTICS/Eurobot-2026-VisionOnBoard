@@ -55,6 +55,7 @@ CameraOnBoardNode::CameraOnBoardNode()
 }
 
 void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+    // get the camera's internal parameters
     if (!intrinsics_received_) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Waiting for camera intrinsics...");
         return;
@@ -151,8 +152,11 @@ void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 
     if (floor_points.size() < 2) return;
 
+    // Extract camera position in base_footprint from the transform
+    cv::Point2d camera_in_base(cam_to_base.transform.translation.x, cam_to_base.transform.translation.y);
+
     geometry_msgs::msg::PoseStamped target_pose = logic_.compute_perpendicular_pose_from_floor_points(
-        floor_points, this->get_clock()->now(), marker_pub_);
+        floor_points, camera_in_base, this->get_clock()->now(), marker_pub_);
 
     if (!target_pose.header.frame_id.empty()) {
         // Log key results: number of selected markers, center and yaw
