@@ -142,9 +142,6 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     while (final_yaw > M_PI) final_yaw -= 2.0 * M_PI;
 
     double final_yaw_deg = final_yaw * (180.0 / M_PI);
-    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), 
-        "Cam: %s | Center=(%.2f,%.2f) | Normal=(%.2f,%.2f) | RobotYaw=%.1f deg", 
-        camera_position_.c_str(), center_x, center_y, perp_dx, perp_dy, final_yaw_deg);
 
     result_pose.header.frame_id = "base_footprint";
     result_pose.header.stamp = now;

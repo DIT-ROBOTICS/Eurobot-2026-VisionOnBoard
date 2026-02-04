@@ -99,8 +99,8 @@ private:
             current_vote.push_back(is_target ? 1 : 0);
         }
 
-        RCLCPP_ERROR(this->get_logger(), "Current vote: [%d, %d, %d, %d]", 
-            current_vote[0], current_vote[1], current_vote[2], current_vote[3]);
+        // RCLCPP_ERROR(this->get_logger(), "Current vote: [%d, %d, %d, %d]", 
+        //     current_vote[0], current_vote[1], current_vote[2], current_vote[3]);
 
         // Phase 3: Voting
         vote_buffer_.push_back(current_vote);
