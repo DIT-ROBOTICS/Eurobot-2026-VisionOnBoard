@@ -9,7 +9,6 @@ from ament_index_python.packages import get_package_share_directory
 def launch_setup(context: LaunchContext):
     """Launch 4 object_detector nodes"""
     # Side mapping: 0=front, 1=right, 2=back, 3=left
-    position_to_side = {'front': 0, 'right': 1, 'back': 2, 'left': 3}
     camera_positions = ['front', 'back', 'left', 'right']
     default_side = int(LaunchConfiguration('default_dock_side').perform(context))
 
