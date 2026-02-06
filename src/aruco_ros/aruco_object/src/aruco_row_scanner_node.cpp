@@ -1,183 +1,191 @@
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <std_msgs/msg/int8_multi_array.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/aruco.hpp>
-#include <opencv2/opencv.hpp>
-#include <vector>
-#include <algorithm>
-#include <map>
-#include <deque>
+    #include <rclcpp/rclcpp.hpp>
+    #include <sensor_msgs/msg/image.hpp>
+    #include <std_msgs/msg/int8_multi_array.hpp>
+    #include <std_msgs/msg/string.hpp>
+    #include <cv_bridge/cv_bridge.h>
+    #include <opencv2/aruco.hpp>
+    #include <opencv2/opencv.hpp>
+    #include <vector>
+    #include <algorithm>
+    #include <map>
+    #include <deque>
 
-class ArucoRowScannerNode : public rclcpp::Node {
-public:
-    ArucoRowScannerNode() : Node("aruco_row_scanner") {
-        // Parameters
-        this->declare_parameter<std::string>("team_color", "yellow");
-        this->declare_parameter<int64_t>("blue_id", 36);
-        this->declare_parameter<int64_t>("yellow_id", 47);
-        this->declare_parameter<int>("votes_needed", 5);
+    class ArucoRowScannerNode : public rclcpp::Node {
+    public:
+        ArucoRowScannerNode() : Node("aruco_row_scanner") {
+            // Declare camera_position FIRST (before using it for topics)
+            this->declare_parameter<std::string>("camera_position", "front");
+            camera_position_ = this->get_parameter("camera_position").as_string();
+            
+            // Parameters
+            this->declare_parameter<std::string>("team_color", "yellow");
+            this->declare_parameter<int64_t>("blue_id", 36);
+            this->declare_parameter<int64_t>("yellow_id", 47);
+            this->declare_parameter<int>("votes_needed", 5);
 
-        team_color_ = this->get_parameter("team_color").as_string();
-        votes_needed_ = this->get_parameter("votes_needed").as_int();
+            team_color_ = this->get_parameter("team_color").as_string();
+            votes_needed_ = this->get_parameter("votes_needed").as_int();
 
-        // logic: if team_color is blue, use yellow_id, else use blue_id
-        int64_t id = (team_color_ == "blue") ? 
-            this->get_parameter("yellow_id").as_int() : 
-            this->get_parameter("blue_id").as_int();
+            // logic: if team_color is blue, use yellow_id, else use blue_id
+            int64_t id = (team_color_ == "blue") ? 
+                this->get_parameter("yellow_id").as_int() : 
+                this->get_parameter("blue_id").as_int();
 
-        target_ids_.push_back(static_cast<int>(id));
+            target_ids_.push_back(static_cast<int>(id));
 
-        RCLCPP_INFO(this->get_logger(), "Scanner started for team: %s. Votes needed: %d", team_color_.c_str(), votes_needed_);
+            // Initialize ArUco dictionary
+            dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+            detector_params_ = cv::aruco::DetectorParameters::create();
 
-        // Initialize ArUco dictionary
-        dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-        detector_params_ = cv::aruco::DetectorParameters::create();
+            // Build namespaced topic name based on camera position
+            std::string image_topic = "/" + camera_position_ + "/camera/color/image_rect_raw";
+            RCLCPP_INFO(this->get_logger(), "Scanner [%s] subscribing to: %s", camera_position_.c_str(), image_topic.c_str());
 
-        // Subscriber
-        image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/color/image_rect_raw", 10,
-            std::bind(&ArucoRowScannerNode::image_callback, this, std::placeholders::_1));
+            // Subscriber with namespaced topic
+            image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+                image_topic, 10,
+                std::bind(&ArucoRowScannerNode::image_callback, this, std::placeholders::_1));
 
-        // Publisher
-        mask_pub_ = this->create_publisher<std_msgs::msg::Int8MultiArray>("target_flip_mask", 10);
-        
-        // Camera position parameter for multi-camera support
-        this->declare_parameter<std::string>("camera_position", "front");
-        camera_position_ = this->get_parameter("camera_position").as_string();
-        
-        // Subscribe to active camera topic for multi-camera activation control
-        active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
-            "/active_camera", 10,
-            [this](std_msgs::msg::String::SharedPtr msg) { 
-                active_camera_ = msg->data; 
-            });
-    }
-
-private:
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
-        // Multi-camera activation: dormant by default until /active_camera matches our position
-        if (active_camera_ != camera_position_) {
-            return;
-        }
-        
-        if (task_completed_) return;
-
-        cv_bridge::CvImagePtr cv_ptr;
-        try {
-            cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-        } catch (cv_bridge::Exception &e) {
-            RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-            return;
+            // Publisher
+            mask_pub_ = this->create_publisher<std_msgs::msg::Int8MultiArray>("target_flip_mask", 10);
+            
+            // Subscribe to active camera topic for multi-camera activation control
+            active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
+                "/active_camera", 10,
+                [this](std_msgs::msg::String::SharedPtr msg) { 
+                    active_camera_ = msg->data;
+                    bool is_active = (active_camera_ == camera_position_);
+                    RCLCPP_INFO(this->get_logger(), "Active camera: '%s' -> %s", 
+                        msg->data.c_str(), is_active ? "ACTIVE" : "dormant");
+                });
+                
+            RCLCPP_INFO(this->get_logger(), "Scanner [%s] started for team: %s. Votes needed: %d", 
+                camera_position_.c_str(), team_color_.c_str(), votes_needed_);
         }
 
-        std::vector<int> ids;
-        std::vector<std::vector<cv::Point2f>> corners;
-        cv::aruco::detectMarkers(cv_ptr->image, dictionary_, corners, ids, detector_params_);
+    private:
+        void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+            // Multi-camera activation: dormant by default until /active_camera matches our position
+            if (active_camera_ != camera_position_) {
+                return;
+            }
+            
+            if (task_completed_) return;
 
-        // Phase 2: Perfect 4 Check
-        if (ids.size() != 4) {
-            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Seen %zu markers (need 4)", ids.size());
-            return; // Ignore frame
-        }
-        struct Marker {
-            int id;
-            float y;
-        };
+            cv_bridge::CvImagePtr cv_ptr;
+            try {
+                cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+            } catch (cv_bridge::Exception &e) {
+                RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+                return;
+            }
 
-        std::vector<Marker> sorted_markers;
-        // calculate center y of each marker
-        for (size_t i = 0; i < ids.size(); ++i) {
-            float cy = 0;
-            for (const auto& p : corners[i]) cy += p.y;
-            cy /= 4.0;
-            sorted_markers.push_back({ids[i], cy});
-        }
-        
-        // sort by ascending y (small to large) -> Top to Bottom in image
-        std::sort(sorted_markers.begin(), sorted_markers.end(), 
-            [](const Marker& a, const Marker& b) { return a.y < b.y; });
+            std::vector<int> ids;
+            std::vector<std::vector<cv::Point2f>> corners;
+            cv::aruco::detectMarkers(cv_ptr->image, dictionary_, corners, ids, detector_params_);
 
-        // Generate Instant Array
-        std::vector<int8_t> current_vote;
-        bool all_valid_ids = true;
-        
-        // iterate through all marker
-        for (const auto& m : sorted_markers) {
-            bool is_target = false;
-            // iterate through all target id
-            for (int t_id : target_ids_) {
-                if (m.id == t_id) {
-                    is_target = true;
-                    break;
+            // Phase 2: Perfect 4 Check
+            if (ids.size() != 4) {
+                RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Seen %zu markers (need 4)", ids.size());
+                return; // Ignore frame
+            }
+            struct Marker {
+                int id;
+                float y;
+            };
+
+            std::vector<Marker> sorted_markers;
+            // calculate center y of each marker
+            for (size_t i = 0; i < ids.size(); ++i) {
+                float cy = 0;
+                for (const auto& p : corners[i]) cy += p.y;
+                cy /= 4.0;
+                sorted_markers.push_back({ids[i], cy});
+            }
+            
+            // sort by ascending y (small to large) -> Top to Bottom in image
+            std::sort(sorted_markers.begin(), sorted_markers.end(), 
+                [](const Marker& a, const Marker& b) { return a.y < b.y; });
+
+            // Generate Instant Array
+            std::vector<int8_t> current_vote;
+            bool all_valid_ids = true;
+            
+            // iterate through all marker
+            for (const auto& m : sorted_markers) {
+                bool is_target = false;
+                // iterate through all target id
+                for (int t_id : target_ids_) {
+                    if (m.id == t_id) {
+                        is_target = true;
+                        break;
+                    }
+                }
+                current_vote.push_back(is_target ? 1 : 0);
+            }
+
+            RCLCPP_ERROR(this->get_logger(), "Current vote: [%d, %d, %d, %d]", 
+                current_vote[0], current_vote[1], current_vote[2], current_vote[3]);
+
+            // Phase 3: Voting
+            vote_buffer_.push_back(current_vote);
+            if (vote_buffer_.size() > (size_t)votes_needed_) {
+                vote_buffer_.pop_front();
+            }
+
+            if (vote_buffer_.size() == (size_t)votes_needed_) {
+                if (check_consensus()) {
+                    publish_result(vote_buffer_.front());
+                    // Optional: task_completed_ = true; 
+                    vote_buffer_.clear(); // Reset buffer after success to avoid rapid re-triggers
+                } else {
+                    // A strict sliding window is better than clearing fully, TODO
+                    if (!check_consensus()) {
+                        vote_buffer_.clear();
+                    }
                 }
             }
-            current_vote.push_back(is_target ? 1 : 0);
         }
 
-        RCLCPP_ERROR(this->get_logger(), "Current vote: [%d, %d, %d, %d]", 
-            current_vote[0], current_vote[1], current_vote[2], current_vote[3]);
-
-        // Phase 3: Voting
-        vote_buffer_.push_back(current_vote);
-        if (vote_buffer_.size() > (size_t)votes_needed_) {
-            vote_buffer_.pop_front();
-        }
-
-        if (vote_buffer_.size() == (size_t)votes_needed_) {
-            if (check_consensus()) {
-                 publish_result(vote_buffer_.front());
-                 // Optional: task_completed_ = true; 
-                 vote_buffer_.clear(); // Reset buffer after success to avoid rapid re-triggers
-            } else {
-                // A strict sliding window is better than clearing fully, TODO
-                if (!check_consensus()) {
-                     vote_buffer_.clear();
-                }
+        bool check_consensus() {
+            if (vote_buffer_.empty()) return false;
+            const auto& first = vote_buffer_.front();
+            for (const auto& v : vote_buffer_) {
+                if (v != first) return false;
             }
+            return true;
         }
-    }
 
-    bool check_consensus() {
-        if (vote_buffer_.empty()) return false;
-        const auto& first = vote_buffer_.front();
-        for (const auto& v : vote_buffer_) {
-            if (v != first) return false;
+        void publish_result(const std::vector<int8_t>& result) {
+            std_msgs::msg::Int8MultiArray msg;
+            msg.data = result;
+            mask_pub_->publish(msg);
+            RCLCPP_INFO(this->get_logger(), "Consensus reached! Published mask: [%d, %d, %d, %d]", 
+                result[0], result[1], result[2], result[3]);
         }
-        return true;
+
+        std::string team_color_;
+        std::vector<int> target_ids_;
+        int votes_needed_;
+        
+        cv::Ptr<cv::aruco::Dictionary> dictionary_;
+        cv::Ptr<cv::aruco::DetectorParameters> detector_params_;
+        
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+        rclcpp::Publisher<std_msgs::msg::Int8MultiArray>::SharedPtr mask_pub_;
+        
+        std::deque<std::vector<int8_t>> vote_buffer_;
+        bool task_completed_ = false; // Could be used if we want single-shot behavior
+        
+        std::string camera_position_;
+        std::string active_camera_ = "";
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr active_camera_sub_;
+    };
+
+    int main(int argc, char **argv) {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<ArucoRowScannerNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+        return 0;
     }
-
-    void publish_result(const std::vector<int8_t>& result) {
-        std_msgs::msg::Int8MultiArray msg;
-        msg.data = result;
-        mask_pub_->publish(msg);
-        RCLCPP_INFO(this->get_logger(), "Consensus reached! Published mask: [%d, %d, %d, %d]", 
-            result[0], result[1], result[2], result[3]);
-    }
-
-    std::string team_color_;
-    std::vector<int> target_ids_;
-    int votes_needed_;
-    
-    cv::Ptr<cv::aruco::Dictionary> dictionary_;
-    cv::Ptr<cv::aruco::DetectorParameters> detector_params_;
-    
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-    rclcpp::Publisher<std_msgs::msg::Int8MultiArray>::SharedPtr mask_pub_;
-    
-    std::deque<std::vector<int8_t>> vote_buffer_;
-    bool task_completed_ = false; // Could be used if we want single-shot behavior
-    
-    std::string camera_position_;
-    std::string active_camera_ = "";
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr active_camera_sub_;
-};
-
-int main(int argc, char **argv) {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<ArucoRowScannerNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
-}
