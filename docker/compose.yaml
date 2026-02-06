@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         USER_UID: ${USER_UID:-1000}
-    image: eurobot-2026-vision:latest
+    image: eurobot-2026-vision-onboard:latest
     container_name: vision-ws
     stdin_open: true
     tty: true
