@@ -25,8 +25,7 @@ public:
     geometry_msgs::msg::PoseStamped compute_perpendicular_pose_from_floor_points(
         const std::vector<cv::Point2d> &floor_points,
         const cv::Point2d &camera_in_base,
-        const rclcpp::Time &now,
-        rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub);
+        const rclcpp::Time &now);
 
 private:
     double marker_length_;
