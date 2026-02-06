@@ -24,6 +24,14 @@ CameraOnBoardNode::CameraOnBoardNode()
     object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
     marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
     
+    // Subscribe to active camera topic for multi-camera activation control
+    active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "/active_camera", 10,
+        [this](std_msgs::msg::String::SharedPtr msg) { 
+            active_camera_ = msg->data; 
+            RCLCPP_INFO_ONCE(this->get_logger(), "Received active_camera signal");
+        });
+    
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -55,6 +63,11 @@ CameraOnBoardNode::CameraOnBoardNode()
 }
 
 void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+    // Multi-camera activation: dormant by default until /active_camera matches our position
+    if (active_camera_ != CAMERA_POSITION_) {
+        return;
+    }
+    
     // get the camera's internal parameters
     if (!intrinsics_received_) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Waiting for camera intrinsics...");
