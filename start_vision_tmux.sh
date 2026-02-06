@@ -23,48 +23,56 @@ tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/hu
 # Split the window horizontally to create a second pane
 tmux split-window -h -t $SESSION_NAME:0
 
-# === Pane 1: Watchdog + ArUco Launcher ===
-# This pane waits for camera topics to be available, then launches detector and scanner
-WATCHDOG_CMD='
+# === Pane 1: Object Detector (waits for camera) ===
+DETECTOR_CMD='
 export ROS_DOMAIN_ID=13
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
-echo "=== Waiting for camera topics... ==="
-
-# Wait for any camera_info topic matching pattern */camera/color/camera_info
+echo "=== [Detector] Waiting for camera topics... ==="
 while true; do
     TOPICS=$(ros2 topic list 2>/dev/null | grep -E "/camera/color/camera_info")
     if [ -n "$TOPICS" ]; then
-        echo "=== Camera topic found: $TOPICS ==="
+        echo "=== [Detector] Camera found: $TOPICS ==="
         break
     fi
-    echo "Waiting for camera topics..."
     sleep 2
 done
-
-# Small delay to ensure camera is fully ready
-sleep 2
-
-echo "=== Launching ArUco Detector ==="
-ros2 launch aruco_object detector_multi.launch.py &
-DETECTOR_PID=$!
-
 sleep 1
-
-echo "=== Launching ArUco Scanner ==="
-ros2 launch aruco_object scanner_multi.launch.py &
-SCANNER_PID=$!
-
-echo "=== All nodes launched! Detector PID: $DETECTOR_PID, Scanner PID: $SCANNER_PID ==="
-
-# Wait for both processes
-wait $DETECTOR_PID $SCANNER_PID
+echo "=== [Detector] Launching ArUco Detector ==="
+ros2 launch aruco_object detector_multi.launch.py
 '
 
 tmux send-keys -t $SESSION_NAME:0.1 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t $SESSION_NAME:0.1 "$WATCHDOG_CMD" C-m
+tmux send-keys -t $SESSION_NAME:0.1 "$DETECTOR_CMD" C-m
+
+# Split pane 1 vertically to create pane 2
+tmux split-window -v -t $SESSION_NAME:0.1
+
+# === Pane 2: Row Scanner (waits for camera) ===
+SCANNER_CMD='
+export ROS_DOMAIN_ID=13
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+echo "=== [Scanner] Waiting for camera topics... ==="
+while true; do
+    TOPICS=$(ros2 topic list 2>/dev/null | grep -E "/camera/color/camera_info")
+    if [ -n "$TOPICS" ]; then
+        echo "=== [Scanner] Camera found: $TOPICS ==="
+        break
+    fi
+    sleep 2
+done
+sleep 1
+echo "=== [Scanner] Launching ArUco Scanner ==="
+ros2 launch aruco_object scanner_multi.launch.py
+'
+
+tmux send-keys -t $SESSION_NAME:0.2 'docker exec -it vision-ws bash' C-m
+sleep 1
+tmux send-keys -t $SESSION_NAME:0.2 "$SCANNER_CMD" C-m
 
 # Create a new window for Rviz
 tmux new-window -t $SESSION_NAME:1 -n 'rviz'
