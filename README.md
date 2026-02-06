@@ -33,3 +33,26 @@ Open RViz to visualize camera images and TF frames:
 ```bash
 ros2 run rviz2 rviz2
 ```
+
+### switch to another camera when using multiple cameras
+Since only one camera is active at a time, you can switch to another camera by publishing to /active_camera topic.
+#### Switch to front camera
+```bash
+ros2 topic pub /active_camera std_msgs/msg/String "data: 'front'" -1
+```
+#### Switch to back camera  
+```bash
+ros2 topic pub /active_camera std_msgs/msg/String "data: 'back'" -1
+```
+#### Switch to left camera
+```bash
+ros2 topic pub /active_camera std_msgs/msg/String "data: 'left'" -1
+```
+#### Switch to right camera
+```bash
+ros2 topic pub /active_camera std_msgs/msg/String "data: 'right'" -1
+```
+#### Make all cameras dormant (empty string)
+```bash
+ros2 topic pub /active_camera std_msgs/msg/String "data: ''" -1
+```

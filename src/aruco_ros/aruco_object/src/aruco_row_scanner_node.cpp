@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/int8_multi_array.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/aruco.hpp>
 #include <opencv2/opencv.hpp>
@@ -41,10 +42,26 @@ public:
 
         // Publisher
         mask_pub_ = this->create_publisher<std_msgs::msg::Int8MultiArray>("target_flip_mask", 10);
+        
+        // Camera position parameter for multi-camera support
+        this->declare_parameter<std::string>("camera_position", "front");
+        camera_position_ = this->get_parameter("camera_position").as_string();
+        
+        // Subscribe to active camera topic for multi-camera activation control
+        active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
+            "/active_camera", 10,
+            [this](std_msgs::msg::String::SharedPtr msg) { 
+                active_camera_ = msg->data; 
+            });
     }
 
 private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+        // Multi-camera activation: dormant by default until /active_camera matches our position
+        if (active_camera_ != camera_position_) {
+            return;
+        }
+        
         if (task_completed_) return;
 
         cv_bridge::CvImagePtr cv_ptr;
@@ -151,6 +168,10 @@ private:
     
     std::deque<std::vector<int8_t>> vote_buffer_;
     bool task_completed_ = false; // Could be used if we want single-shot behavior
+    
+    std::string camera_position_;
+    std::string active_camera_ = "";
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr active_camera_sub_;
 };
 
 int main(int argc, char **argv) {
