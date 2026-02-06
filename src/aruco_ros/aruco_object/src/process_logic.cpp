@@ -66,8 +66,7 @@ void ProcessLogic::select_clustered_aruco(
 geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_floor_points(
     const std::vector<cv::Point2d> &floor_points,
     const cv::Point2d &camera_in_base,
-    const rclcpp::Time &now,
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub) {
+    const rclcpp::Time &now) {
 
     geometry_msgs::msg::PoseStamped result_pose;
     if (floor_points.empty()) return result_pose;
@@ -222,35 +221,6 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     
     // Store for next iteration
     last_pose_ = result_pose;
-
-    // // Publish Visualization Marker (Optional: Show the calculated approach vector)
-    // if (marker_pub) {
-    //     visualization_msgs::msg::Marker arrow;
-    //     arrow.header.frame_id = result_pose.header.frame_id;
-    //     arrow.header.stamp = now;
-    //     arrow.ns = "approach_vector";
-    //     arrow.id = 101;
-    //     arrow.type = visualization_msgs::msg::Marker::ARROW;
-    //     arrow.action = visualization_msgs::msg::Marker::ADD;
-        
-    //     // Start point (Robot/Cluster Center)
-    //     geometry_msgs::msg::Point p1, p2;
-    //     p1.x = result_pose.pose.position.x; 
-    //     p1.y = result_pose.pose.position.y; 
-    //     p1.z = 0.0;
-        
-    //     // End point (pointing into the wall)
-    //     double len = 0.5;
-    //     p2.x = result_pose.pose.position.x + perp_dx * len; 
-    //     p2.y = result_pose.pose.position.y + perp_dy * len; 
-    //     p2.z = 0.0;
-        
-    //     arrow.points.push_back(p1);
-    //     arrow.points.push_back(p2);
-    //     arrow.scale.x = 0.05; arrow.scale.y = 0.1; arrow.scale.z = 0.1;
-    //     arrow.color.r = 0.0f; arrow.color.g = 1.0f; arrow.color.b = 0.0f; arrow.color.a = 1.0f;
-    //     marker_pub->publish(arrow);
-    // }
 
     return result_pose;
 }

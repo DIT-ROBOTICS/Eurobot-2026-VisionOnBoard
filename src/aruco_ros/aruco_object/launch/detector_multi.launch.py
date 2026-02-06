@@ -8,11 +8,13 @@ from ament_index_python.packages import get_package_share_directory
 
 def launch_setup(context: LaunchContext):
     """Launch 4 object_detector nodes"""
+    # Side mapping: 0=front, 1=right, 2=back, 3=left
+    position_to_side = {'front': 0, 'right': 1, 'back': 2, 'left': 3}
     camera_positions = ['front', 'back', 'left', 'right']
-    default_camera = LaunchConfiguration('default_active_camera').perform(context)
+    default_side = int(LaunchConfiguration('default_dock_side').perform(context))
 
-    if default_camera and default_camera not in camera_positions:
-        raise Exception(f"[ERROR] Invalid camera position: '{default_camera}'")
+    if default_side not in [0, 1, 2, 3]:
+        raise Exception(f"[ERROR] Invalid dock_side: '{default_side}'. Must be 0-3.")
     
     pkg_share = get_package_share_directory('aruco_object')
     config_file = os.path.join(pkg_share, 'config', 'combined_params.yaml')
@@ -31,14 +33,13 @@ def launch_setup(context: LaunchContext):
         )
         nodes.append(node)
     
-    # Publish initial active camera
-    if default_camera:
-        publish_cmd = ExecuteProcess(
-            cmd=['bash', '-c', 
-                 f'sleep 2 && ros2 topic pub /active_camera std_msgs/msg/String "data: \'{default_camera}\'" -1'],
-            output='screen'
-        )
-        nodes.append(publish_cmd)
+    # Publish initial dock_side
+    publish_cmd = ExecuteProcess(
+        cmd=['bash', '-c', 
+             f'sleep 2 && ros2 topic pub /robot/dock_side std_msgs/msg/Int16 "data: {default_side}" -1'],
+        output='screen'
+    )
+    nodes.append(publish_cmd)
 
     return nodes
 
@@ -46,6 +47,6 @@ def launch_setup(context: LaunchContext):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('log_level', default_value='info'),
-        DeclareLaunchArgument('default_active_camera', default_value='back'),
+        DeclareLaunchArgument('default_dock_side', default_value='2'),  # 0=front, 1=right, 2=back, 3=left
         OpaqueFunction(function=launch_setup)
     ])

@@ -22,12 +22,18 @@ CameraOnBoardNode::CameraOnBoardNode()
     CAMERA_POSITION_ = this->declare_parameter<std::string>("camera_position", "front");
     SMOOTH_ALPHA_ = this->declare_parameter<double>("smooth_alpha", 0.3);
     
+    // Map camera position string to dock_side number
+    // dock_side: 0=front, 1=right, 2=back, 3=left
+    position_to_side_ = {{"front", 0}, {"right", 1}, {"back", 2}, {"left", 3}};
+    my_side_ = position_to_side_[CAMERA_POSITION_];
+    
     // Build namespaced topic names based on camera position
     // e.g., "front" -> "/front/camera/color/image_rect_raw"
     std::string image_topic = "/" + CAMERA_POSITION_ + "/camera/color/image_rect_raw";
     std::string camera_info_topic = "/" + CAMERA_POSITION_ + "/camera/color/camera_info";
     
-    RCLCPP_INFO(this->get_logger(), "Subscribing to: %s", image_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "Detector [%s] (side=%d) subscribing to: %s", 
+        CAMERA_POSITION_.c_str(), my_side_, image_topic.c_str());
     
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         image_topic, 10,
@@ -38,16 +44,15 @@ CameraOnBoardNode::CameraOnBoardNode()
         std::bind(&CameraOnBoardNode::camera_info_callback, this, _1));
 
     object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
-    marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
     
-    // Subscribe to active camera topic for multi-camera activation control
-    active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
-        "/active_camera", 10,
-        [this](std_msgs::msg::String::SharedPtr msg) { 
-            active_camera_ = msg->data;
-            bool is_active = (active_camera_ == CAMERA_POSITION_);
-            RCLCPP_INFO(this->get_logger(), "Active camera: '%s' -> %s", 
-                msg->data.c_str(), is_active ? "ACTIVE" : "dormant");
+    // Subscribe to dock_side topic for multi-camera activation control
+    dock_side_sub_ = this->create_subscription<std_msgs::msg::Int16>(
+        "/robot/dock_side", 10,
+        [this](std_msgs::msg::Int16::SharedPtr msg) { 
+            active_side_ = msg->data;
+            bool is_active = (active_side_ == my_side_);
+            RCLCPP_INFO(this->get_logger(), "Dock side: %d -> %s", 
+                msg->data, is_active ? "ACTIVE" : "dormant");
         });
     
 
@@ -70,12 +75,13 @@ CameraOnBoardNode::CameraOnBoardNode()
         cv::Point3f(-half_len, -half_len, 0)
     };
 
-    RCLCPP_INFO(this->get_logger(), "Object detector [%s] started. cluster_radius: %.3f", CAMERA_POSITION_.c_str(), CLUSTER_RADIUS_);
+    RCLCPP_INFO(this->get_logger(), "Object detector [%s] (side=%d) started. cluster_radius: %.3f", 
+        CAMERA_POSITION_.c_str(), my_side_, CLUSTER_RADIUS_);
 }
 
 void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    // Multi-camera activation: dormant by default until /active_camera matches our position
-    if (active_camera_ != CAMERA_POSITION_) {
+    // Multi-camera activation: dormant by default until dock_side matches our side
+    if (active_side_ != my_side_) {
         return;
     }
     
@@ -180,7 +186,7 @@ void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     cv::Point2d camera_in_base(cam_to_base.transform.translation.x, cam_to_base.transform.translation.y);
 
     geometry_msgs::msg::PoseStamped target_pose = logic_.compute_perpendicular_pose_from_floor_points(
-        floor_points, camera_in_base, this->get_clock()->now(), marker_pub_);
+        floor_points, camera_in_base, this->get_clock()->now());
 
     if (!target_pose.header.frame_id.empty()) {
         // Log key results: number of selected markers, center and yaw
