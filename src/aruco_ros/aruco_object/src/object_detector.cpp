@@ -13,12 +13,28 @@ CameraOnBoardNode::CameraOnBoardNode()
 : Node("aruco_detector_node"), logic_(/*default constructed*/)
 {
     using std::placeholders::_1;
+    
+    // Declare parameters FIRST (before using them for topics)
+    MARKER_LENGTH_ = this->declare_parameter<double>("marker_length", 0.03);
+    CLUSTER_RADIUS_ = this->declare_parameter<double>("cluster_radius", 0.3);
+    BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
+    YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
+    CAMERA_POSITION_ = this->declare_parameter<std::string>("camera_position", "front");
+    SMOOTH_ALPHA_ = this->declare_parameter<double>("smooth_alpha", 0.3);
+    
+    // Build namespaced topic names based on camera position
+    // e.g., "front" -> "/front/camera/color/image_rect_raw"
+    std::string image_topic = "/" + CAMERA_POSITION_ + "/camera/color/image_rect_raw";
+    std::string camera_info_topic = "/" + CAMERA_POSITION_ + "/camera/color/camera_info";
+    
+    RCLCPP_INFO(this->get_logger(), "Subscribing to: %s", image_topic.c_str());
+    
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/camera/camera/color/image_rect_raw", 10,
+        image_topic, 10,
         std::bind(&CameraOnBoardNode::image_callback, this, _1));
     
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/camera/camera/color/camera_info", 10,
+        camera_info_topic, 10,
         std::bind(&CameraOnBoardNode::camera_info_callback, this, _1));
 
     object_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_dock_pose", 10);
@@ -28,8 +44,10 @@ CameraOnBoardNode::CameraOnBoardNode()
     active_camera_sub_ = this->create_subscription<std_msgs::msg::String>(
         "/active_camera", 10,
         [this](std_msgs::msg::String::SharedPtr msg) { 
-            active_camera_ = msg->data; 
-            RCLCPP_INFO_ONCE(this->get_logger(), "Received active_camera signal");
+            active_camera_ = msg->data;
+            bool is_active = (active_camera_ == CAMERA_POSITION_);
+            RCLCPP_INFO(this->get_logger(), "Active camera: '%s' -> %s", 
+                msg->data.c_str(), is_active ? "ACTIVE" : "dormant");
         });
     
 
@@ -39,13 +57,6 @@ CameraOnBoardNode::CameraOnBoardNode()
 
     dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     detector_params_ = cv::aruco::DetectorParameters::create();
-
-    MARKER_LENGTH_ = this->declare_parameter<double>("marker_length", 0.03);
-    CLUSTER_RADIUS_ = this->declare_parameter<double>("cluster_radius", 0.3);
-    BLUE_ID_ = this->declare_parameter<int>("blue_id", 36);
-    YELLOW_ID_ = this->declare_parameter<int>("yellow_id", 47);
-    CAMERA_POSITION_ = this->declare_parameter<std::string>("camera_position", "front");
-    SMOOTH_ALPHA_ = this->declare_parameter<double>("smooth_alpha", 0.3);
 
     // configure logic with declared params
     logic_ = ProcessLogic(MARKER_LENGTH_, BLUE_ID_, YELLOW_ID_, CLUSTER_RADIUS_, CAMERA_POSITION_, SMOOTH_ALPHA_);
@@ -59,7 +70,7 @@ CameraOnBoardNode::CameraOnBoardNode()
         cv::Point3f(-half_len, -half_len, 0)
     };
 
-    RCLCPP_INFO(this->get_logger(), "Object detector started. cluster_radius: %.3f", CLUSTER_RADIUS_);
+    RCLCPP_INFO(this->get_logger(), "Object detector [%s] started. cluster_radius: %.3f", CAMERA_POSITION_.c_str(), CLUSTER_RADIUS_);
 }
 
 void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {

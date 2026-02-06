@@ -15,33 +15,29 @@ fi
 # Create a new tmux session named 'vision' but don't attach to it yet
 tmux new-session -d -s $SESSION_NAME
 
-# Send commands to the first pane (pane 0)
+# Send commands to the first pane (pane 0) - Camera Node
 # Enter the running docker container
 tmux send-keys -t $SESSION_NAME:0 'docker exec -it vision-ws bash' C-m
 # Wait a brief moment for the container shell to be ready
 sleep 1
-# Source ROS 2 Humble setup and local workspace setup
-# tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_launch.py camera_name:=rb_back_camera' C-m
-tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_launch.py' C-m
+# Source ROS 2 Humble setup and launch camera
+tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_launch.py camera_namespace:=back' C-m
 
 # Split the window horizontally to create a second pane
 tmux split-window -h -t $SESSION_NAME:0
 
-# Send commands to the second pane (pane 1)
-# Enter the running docker container
+# Send commands to the second pane (pane 1) - Object Detector Nodes
 tmux send-keys -t $SESSION_NAME:0.1 'docker exec -it vision-ws bash' C-m
-# Wait a brief moment
 sleep 1
-# Source ROS 2 Humble setup and local workspace setup
-tmux send-keys -t $SESSION_NAME:0.1 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch aruco_object object_detector.launch.py' C-m
+tmux send-keys -t $SESSION_NAME:0.1 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && source install/setup.bash && ros2 launch aruco_object detector_multi.launch.py' C-m
 
-# Split the detector pane (pane 1) vertically to create a third pane for the scanner
+# Split the detector pane vertically to create a third pane for scanner
 tmux split-window -v -t $SESSION_NAME:0.1
 
-# Send commands to the third pane (pane 2)
+# Send commands to the third pane (pane 2) - Row Scanner Nodes
 tmux send-keys -t $SESSION_NAME:0.2 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t $SESSION_NAME:0.2 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch aruco_object scanner.launch.py' C-m
+tmux send-keys -t $SESSION_NAME:0.2 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && source install/setup.bash && ros2 launch aruco_object scanner_multi.launch.py' C-m
 
 # Create a new window for Rviz
 tmux new-window -t $SESSION_NAME:1 -n 'rviz'
