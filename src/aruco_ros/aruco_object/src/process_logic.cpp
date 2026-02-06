@@ -78,31 +78,76 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     double center_x = sum_x / floor_points.size();
     double center_y = sum_y / floor_points.size();
 
-    // Simple Yaw Calculation: No PCA needed
-    // Robot coordinate system: Front = +Y, Right = +X
-    // The yaw is the angle from robot's +Y axis to the cluster center,
-    // adjusted by which camera is viewing it.
+    // === PCA-based Wall Orientation ===
+    // Use PCA to find the line direction of the markers (wall).
+    // The perpendicular to this line gives the wall normal (facing direction).
+    // Use camera_position to disambiguate which way the normal should point.
     
-    // atan2(x, y) gives angle from +Y axis (since front is +Y)
-    double angle_to_target = std::atan2(center_x, center_y);
+    cv::Mat data_pts((int)floor_points.size(), 2, CV_64F);
+    for (size_t i = 0; i < floor_points.size(); ++i) {
+        data_pts.at<double>((int)i, 0) = floor_points[i].x;
+        data_pts.at<double>((int)i, 1) = floor_points[i].y;
+    }
+    cv::PCA pca_analysis(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
     
-    double final_yaw;
+    // First eigenvector = direction of the line (wall)
+    double line_dx = pca_analysis.eigenvectors.at<double>(0, 0);
+    double line_dy = pca_analysis.eigenvectors.at<double>(0, 1);
+    
+    // Perpendicular to line = wall normal candidates (two directions: +90° and -90°)
+    double perp_dx = -line_dy;
+    double perp_dy = line_dx;
+    
+    // === Disambiguate using camera_position ===
+    // The wall normal should point TOWARDS the camera (i.e., away from the wall into the viewing area)
+    // Based on camera_position, we know which direction the camera is looking:
+    //   - back:  camera looks at -Y, so normal should point towards -Y (perp_dy < 0)
+    //   - front: camera looks at +Y, so normal should point towards +Y (perp_dy > 0)
+    //   - left:  camera looks at -X, so normal should point towards -X (perp_dx < 0)
+    //   - right: camera looks at +X, so normal should point towards +X (perp_dx > 0)
+    
     if (camera_position_ == "back") {
-        // Back camera: robot back (-Y) faces target, so robot front (+Y) points opposite
-        final_yaw = angle_to_target + M_PI;
+        // Camera looks at -Y, normal should point toward camera (negative Y)
+        if (perp_dy > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
+    } else if (camera_position_ == "front") {
+        // Camera looks at +Y, normal should point toward camera (positive Y)
+        if (perp_dy < 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
     } else if (camera_position_ == "left") {
-        // Left camera (-X): target is to robot's left
-        final_yaw = angle_to_target + M_PI_2;
+        // Camera looks at -X, normal should point toward camera (negative X)
+        if (perp_dx > 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
     } else if (camera_position_ == "right") {
-        // Right camera (+X): target is to robot's right
-        final_yaw = angle_to_target - M_PI_2;
-    } else {
-        // Front camera (+Y): robot front faces target
-        final_yaw = angle_to_target;
+        // Camera looks at +X, normal should point toward camera (positive X)
+        if (perp_dx < 0) { perp_dx = -perp_dx; perp_dy = -perp_dy; }
     }
     
-    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), "angle_to_target: %.2f deg, final_yaw: %.2f deg", 
-                angle_to_target * (180.0 / M_PI), final_yaw * (180.0 / M_PI));
+    // === Calculate final yaw ===
+    // Robot coordinate system: Front = +Y, Right = +X
+    // The robot should orient so its front (+Y) points OPPOSITE to the wall normal
+    // (i.e., the robot faces the wall)
+    
+    // Wall normal angle (from +X axis in standard math coords)
+    double perp_angle = std::atan2(perp_dy, perp_dx);
+    
+    // Convert to robot yaw: robot front (+Y) should face OPPOSITE to normal
+    // Robot yaw is measured from +Y axis, so we add 90° offset and flip
+    double final_yaw;
+    if (camera_position_ == "back") {
+        // Robot back faces wall, so front points away (opposite to normal + 180°)
+        final_yaw = perp_angle + M_PI - M_PI_2;  // = perp_angle + PI/2
+    } else if (camera_position_ == "left") {
+        // Robot left faces wall
+        final_yaw = perp_angle + M_PI_2 - M_PI_2;  // = perp_angle
+    } else if (camera_position_ == "right") {
+        // Robot right faces wall
+        final_yaw = perp_angle - M_PI_2 - M_PI_2;  // = perp_angle - PI
+    } else {
+        // Robot front faces wall
+        final_yaw = perp_angle - M_PI_2;
+    }
+    
+    RCLCPP_INFO(rclcpp::get_logger("ProcessLogic"), 
+        "PCA perp_angle: %.2f deg, final_yaw: %.2f deg", 
+        perp_angle * (180.0 / M_PI), final_yaw * (180.0 / M_PI));
 
     // Yaw Consistency Check: DISABLED - Trust geometric check only
     // if (!first_pose_) {
