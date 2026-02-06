@@ -4,15 +4,11 @@ object_detector:
     cluster_radius: 0.4
     blue_id: 36
     yellow_id: 47
-    # Camera position: "front", "back", "left", or "right"
-    camera_position: "back"
     # Smoothing factor for pose filter (0.0-1.0, lower = more smoothing)
     smooth_alpha: 0.3
 
 aruco_row_scanner:
   ros__parameters:
-    # Team color: "yellow" or "blue" (determines which IDs are targets)
-    team_color: "blue"
     blue_id: 36
     yellow_id: 47
     # Voting system: how many consistent frames needed
