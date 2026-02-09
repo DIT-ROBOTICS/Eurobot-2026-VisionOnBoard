@@ -80,17 +80,16 @@ All nodes subscribe to `/robot/dock_side` - only the matching camera side proces
 Launch individual camera, detector, or scanner nodes with camera position:
 
 ### Camera Node (RealSense)
-```bash
-ros2 launch realsense2_camera rs_launch.py \
-    camera_namespace:=front camera_name:=front \
-    rgb_camera.color_profile:=640,480,15 enable_depth:=false
+
+start docker first
 ```
-Replace `front` with: `front`, `back`, `left`, or `right`
+docker exec -it vision-ws bash
+```
 
 ### Object Detector Node
 ```bash
 ros2 run aruco_object aruco_detector_node --ros-args \
-    -p camera_position:=front
+    -p camera_position:=left
 ```
 
 ### Row Scanner Node
@@ -109,3 +108,35 @@ ros2 launch aruco_object detector_multi.launch.py default_dock_side:=1
 ros2 launch aruco_object scanner_multi.launch.py default_dock_side:=1 team_color:=blue
 ```
 
+## camera serial number
+use `rs-enumerate-devices` to list the serial number
+left: 218622276534
+right: 218622276687
+back: 419122270813
+front (d435): 313522070126
+
+### launch with serial number
+```
+ros2 launch realsense2_camera rs_launch.py \
+    camera_namespace:=right \
+    camera_name:=right \
+    serial_no:="'218622276687'" \
+    rgb_camera.color_profile:=640,480,15 \
+    enable_depth:=false
+```
+```
+ros2 launch realsense2_camera rs_launch.py \
+    camera_namespace:=back \
+    camera_name:=back \
+    serial_no:="'419122270813'" \
+    rgb_camera.color_profile:=640,480,15 \
+    enable_depth:=false
+```
+```
+ros2 launch realsense2_camera rs_launch.py \
+    camera_namespace:=left \
+    camera_name:=left \
+    serial_no:="'218622276534'" \
+    rgb_camera.color_profile:=640,480,15 \
+    enable_depth:=false
+```

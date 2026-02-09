@@ -132,13 +132,13 @@ geometry_msgs::msg::PoseStamped ProcessLogic::compute_perpendicular_pose_from_fl
     double final_yaw;
     if (camera_position_ == "back") {
         // Robot back faces wall, so front points away (opposite to normal + 180°)
-        final_yaw = perp_angle + M_PI - M_PI_2;  // = perp_angle + PI/2
+        final_yaw = perp_angle + M_PI_2;  // = perp_angle + PI/2
     } else if (camera_position_ == "left") {
         // Robot left faces wall
-        final_yaw = perp_angle + M_PI_2 - M_PI_2;  // = perp_angle
+        final_yaw = perp_angle + M_PI;  // = perp_angle
     } else if (camera_position_ == "right") {
         // Robot right faces wall
-        final_yaw = perp_angle - M_PI_2 - M_PI_2;  // = perp_angle - PI
+        final_yaw = perp_angle;  // = perp_angle - PI
     } else {
         // Robot front faces wall
         final_yaw = perp_angle - M_PI_2;

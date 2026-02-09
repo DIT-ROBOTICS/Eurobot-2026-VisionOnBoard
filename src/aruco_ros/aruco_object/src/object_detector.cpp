@@ -109,7 +109,8 @@ void CameraOnBoardNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     // Optimize TF lookup: Get transform ONCE for this frame timestamp
     geometry_msgs::msg::TransformStamped cam_to_base;
     try {
-        cam_to_base = tf_buffer_->lookupTransform("base_footprint", "camera_color_optical_frame", 
+        std::string camera_frame = CAMERA_POSITION_ + "_color_optical_frame";
+        cam_to_base = tf_buffer_->lookupTransform("base_footprint", camera_frame, 
                                                  msg->header.stamp, 
                                                  rclcpp::Duration::from_seconds(0.1)); 
     } catch (tf2::TransformException &ex) {
