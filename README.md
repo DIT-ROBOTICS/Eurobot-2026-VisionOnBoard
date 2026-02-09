@@ -74,3 +74,38 @@ start_vision_tmux.sh / multi_camera.launch.py
 ```
 
 All nodes subscribe to `/robot/dock_side` - only the matching camera side processes images.
+
+## Individual Node Launch
+
+Launch individual camera, detector, or scanner nodes with camera position:
+
+### Camera Node (RealSense)
+```bash
+ros2 launch realsense2_camera rs_launch.py \
+    camera_namespace:=front camera_name:=front \
+    rgb_camera.color_profile:=640,480,15 enable_depth:=false
+```
+Replace `front` with: `front`, `back`, `left`, or `right`
+
+### Object Detector Node
+```bash
+ros2 run aruco_object aruco_detector_node --ros-args \
+    -p camera_position:=front
+```
+
+### Row Scanner Node
+```bash
+ros2 run aruco_object aruco_row_scanner --ros-args \
+    -p camera_position:=front \
+    -p team_color:=blue
+```
+
+### Multi-Node Launch Files
+```bash
+# Launch all 4 detector nodes
+ros2 launch aruco_object detector_multi.launch.py default_dock_side:=1
+
+# Launch all 4 scanner nodes
+ros2 launch aruco_object scanner_multi.launch.py default_dock_side:=1 team_color:=blue
+```
+
