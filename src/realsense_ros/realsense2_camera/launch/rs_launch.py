@@ -139,6 +139,8 @@ def launch_setup(context, params, param_name_suffix=''):
             )
     ]
 
+# 2: '0.0', '-0.125', '0.30', '-1.571', '0.7854', '-1.571'
+# 3: '-0.125', '0.0', '0.30', '-3.142', '0.7854', '-1.571'
 def launch_map_transform_publisher_node(context: LaunchContext):
     node = launch_ros.actions.Node(
         name='map_transform_publisher',
@@ -146,7 +148,7 @@ def launch_map_transform_publisher_node(context: LaunchContext):
         executable="static_transform_publisher",
         arguments=[
             # 新的紅黑機數值
-            '0.0', '-0.125', '0.30', '-1.571', '0.7854', '-1.571',
+            '-0.125', '0.0', '0.30', '-3.142', '0.7854', '-1.571',
             'base_footprint',
             context.launch_configurations['camera_name'] + '_link'
         ]
