@@ -85,7 +85,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'default_active_camera',
-            default_value='back',
+            default_value='right',
             description='Camera to activate at startup (front/back/left/right, empty for dormant)'
         ),
         DeclareLaunchArgument(

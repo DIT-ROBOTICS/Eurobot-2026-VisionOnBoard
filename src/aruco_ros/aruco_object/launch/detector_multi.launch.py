@@ -46,6 +46,6 @@ def launch_setup(context: LaunchContext):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('log_level', default_value='info'),
-        DeclareLaunchArgument('default_dock_side', default_value='2'),  # 0=front, 1=right, 2=back, 3=left
+        DeclareLaunchArgument('default_dock_side', default_value='1'),  # 0=front, 1=right, 2=back, 3=left
         OpaqueFunction(function=launch_setup)
     ])

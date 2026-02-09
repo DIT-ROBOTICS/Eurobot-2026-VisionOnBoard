@@ -18,7 +18,8 @@ tmux new-session -d -s $SESSION_NAME
 # === Pane 0: Camera Node ===
 tmux send-keys -t $SESSION_NAME:0 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_launch.py camera_namespace:=back' C-m
+# 換預設相機要記得換這個
+tmux send-keys -t $SESSION_NAME:0 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_launch.py camera_namespace:=right' C-m
 
 # Split the window horizontally to create a second pane
 tmux split-window -h -t $SESSION_NAME:0
