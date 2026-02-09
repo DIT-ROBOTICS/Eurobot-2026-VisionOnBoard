@@ -35,10 +35,12 @@ import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 import rs_launch
 
-local_parameters = [{'name': 'camera_name1', 'default': 'camera1', 'description': 'camera1 unique name'},
-                    {'name': 'camera_name2', 'default': 'camera2', 'description': 'camera2 unique name'},
-                    {'name': 'camera_namespace1', 'default': 'camera1', 'description': 'camera1 namespace'},
-                    {'name': 'camera_namespace2', 'default': 'camera2', 'description': 'camera2 namespace'},
+local_parameters = [{'name': 'camera_name1', 'default': 'back', 'description': 'camera1 unique name'},
+                    {'name': 'camera_name2', 'default': 'left', 'description': 'camera2 unique name'},
+                    {'name': 'camera_namespace1', 'default': 'back', 'description': 'camera1 namespace'},
+                    {'name': 'camera_namespace2', 'default': 'left', 'description': 'camera2 namespace'},
+                    {'name': 'serial_no1', 'default': '_419122270813', 'description': 'camera1 serial number'},
+                    {'name': 'serial_no2', 'default': '_218622276534', 'description': 'camera2 serial number'},
                     ]
 
 def yaml_to_dict(path_to_yaml):
@@ -67,16 +69,29 @@ def launch_static_transform_publisher_node(context : LaunchContext):
     log_message = "Launching as LifecycleNode" if use_lifecycle_node else "Launching as Normal ROS Node"
     
     # dummy static transformation from camera1 to camera2
-    node = node_action(
-            namespace="",
-            name="tf2_static_transform_publisher",
-            package = "tf2_ros",
-            executable = "static_transform_publisher",
-            arguments = ["0", "0", "0", "0", "0", "0",
-                          context.launch_configurations['camera_name1'] + "_link",
-                          context.launch_configurations['camera_name2'] + "_link"]
+    node2 = node_action(
+        namespace="",
+        name="tf2_static_transform_publisher",
+        package = "tf2_ros",
+        executable = "static_transform_publisher",
+        arguments=[
+            '0.0', '-0.125', '0.30', '-1.571', '0.7854', '-1.571',
+            'base_footprint',
+            context.launch_configurations['camera_name1'] + '_link'
+        ]
     )
-    return [LogInfo(msg=f"🚀 {log_message}"), node]
+    node3 = node_action(
+        namespace="",
+        name="tf2_static_transform_publisher",
+        package = "tf2_ros",
+        executable = "static_transform_publisher",
+        arguments=[
+            '-0.125', '0.0', '0.30', '-3.142', '0.7854', '-1.571',
+            'base_footprint',
+            context.launch_configurations['camera_name2'] + '_link'
+        ]
+    )
+    return [LogInfo(msg=f"🚀 {log_message}"), node2, node3]
 
 def generate_launch_description():
     params1 = duplicate_params(rs_launch.configurable_parameters, '1')

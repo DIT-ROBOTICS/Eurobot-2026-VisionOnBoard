@@ -10,8 +10,14 @@ from ament_index_python.packages import get_package_share_directory
 def launch_setup(context: LaunchContext):
     """Called after launch arguments are resolved"""
 
-    # Define valid camera positions
-    camera_positions = ['front', 'back', 'left', 'right']
+    # Define valid camera positions and their serial numbers
+    camera_configs = {
+        'front': '313522070126',
+        'back': '419122270813',
+        'left': '218622276534',
+        'right': '218622276687'
+    }
+    camera_positions = list(camera_configs.keys())
     
     # 1. Grab the value
     default_camera = LaunchConfiguration('default_active_camera').perform(context)
@@ -37,7 +43,7 @@ def launch_setup(context: LaunchContext):
     actions = []
     
     # ========== PHASE 1: Launch 4 cameras with bandwidth-safe settings ==========
-    for position in camera_positions:
+    for position, serial_no in camera_configs.items():
         camera = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_realsense, 'launch', 'rs_launch.py')
@@ -45,6 +51,7 @@ def launch_setup(context: LaunchContext):
             launch_arguments={
                 'camera_namespace': position,
                 'camera_name': position,
+                'serial_no': serial_no,
                 'rgb_camera.color_profile': '640,480,15',  # Low bandwidth: 640x480 @ 15fps
                 'enable_depth': 'false',  # Disable depth to save USB bandwidth
                 'enable_infra': 'false',
