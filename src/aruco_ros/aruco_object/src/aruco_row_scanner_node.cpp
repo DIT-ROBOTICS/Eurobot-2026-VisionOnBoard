@@ -17,7 +17,9 @@
             this->declare_parameter<std::string>("camera_position", "front");
             camera_position_ = this->get_parameter("camera_position").as_string();
             // Build namespaced topic name based on camera position
-            std::string image_topic = "/" + camera_position_ + "/camera/color/image_rect_raw";
+            // Topic format: /{camera_namespace}/{camera_name}/color/image_rect_raw
+            // Both camera_namespace and camera_name are set to camera_position in launch
+            std::string image_topic = "/" + camera_position_ + "/" + camera_position_ + "/color/image_rect_raw";
             RCLCPP_INFO(this->get_logger(), "Scanner [%s] (side=%d) subscribing to: %s", camera_position_.c_str(), my_side_, image_topic.c_str());
 
             // Map camera position string to dock_side number
