@@ -28,9 +28,10 @@ CameraOnBoardNode::CameraOnBoardNode()
     my_side_ = position_to_side_[CAMERA_POSITION_];
     
     // Build namespaced topic names based on camera position
-    // e.g., "front" -> "/front/camera/color/image_rect_raw"
-    std::string image_topic = "/" + CAMERA_POSITION_ + "/camera/color/image_rect_raw";
-    std::string camera_info_topic = "/" + CAMERA_POSITION_ + "/camera/color/camera_info";
+    // Topic format: /{camera_namespace}/{camera_name}/color/...
+    // Both camera_namespace and camera_name are set to CAMERA_POSITION_ in launch
+    std::string image_topic = "/" + CAMERA_POSITION_ + "/" + CAMERA_POSITION_ + "/color/image_rect_raw";
+    std::string camera_info_topic = "/" + CAMERA_POSITION_ + "/" + CAMERA_POSITION_ + "/color/camera_info";
     
     RCLCPP_INFO(this->get_logger(), "Detector [%s] (side=%d) subscribing to: %s", 
         CAMERA_POSITION_.c_str(), my_side_, image_topic.c_str());
