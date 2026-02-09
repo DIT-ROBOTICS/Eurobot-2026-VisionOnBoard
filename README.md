@@ -1,58 +1,76 @@
 # Eurobot-2026-VisionOnBoard
-This repository contains the vision system for the Eurobot 2026 competition.
-## Start with Docker
-### Build image and container
+
+Vision system for Eurobot 2026 competition. Supports 4 RealSense cameras with ArUco marker detection.
+
+## Quick Start
+
+### 1. Start Docker
 ```bash
 cd docker/
 bash start_docker.sh
 ```
 
-### Launch realsense node and hazelnut detector (objector_detector.cpp) together
+### 2. Launch Vision System
+
+**Option A: tmux (recommended for debugging)**
+```bash
+./start_vision_tmux.sh
 ```
-bash start_vision_tmux.sh
+- Window 0: 4 camera panes (front, back, left, right)
+- Window 1: Detector + Scanner nodes
+- Window 2: RViz
+
+**Option B: Single launch file**
+```bash
+# Inside Docker container
+source /opt/ros/humble/setup.bash
+colcon build
+source install/setup.bash
+ros2 launch aruco_object multi_camera.launch.py
 ```
 
-### Run Object Detector with Parameters
-You can run the object detector node with customizable parameters using the launch file:
-```bash
-ros2 launch aruco_object object_detector.launch.py
-```
-This will load parameters from `src/aruco_ros/aruco_object/config/params.yaml`.
+## Launch Parameters
 
-You can also override parameters from the command line:
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `default_active_camera` | `right` | Initial active camera (front/back/left/right) |
+| `team_color` | `blue` | Team color (blue/yellow) |
+| `log_level` | `info` | ROS log level |
+
+Example:
 ```bash
-ros2 launch aruco_object object_detector.launch.py cluster_radius:=0.5
+ros2 launch aruco_object multi_camera.launch.py default_active_camera:=front team_color:=yellow
 ```
 
-### Run rviz
-Before going in the container, run this in terminal to allow allow GUI window inside container
-```
-xhost +local:docker
-```
-Open RViz to visualize camera images and TF frames:
+## Switch Active Camera
+
+Only one camera processes at a time. Publish to `/robot/dock_side` (Int16):
+
+| Side | Value |
+|------|-------|
+| Front | 0 |
+| Right | 1 |
+| Back | 2 |
+| Left | 3 |
+
 ```bash
+ros2 topic pub /robot/dock_side std_msgs/msg/Int16 "data: 2" -1  # Switch to back
+```
+
+## RViz
+
+```bash
+xhost +local:docker  # Run BEFORE entering container
 ros2 run rviz2 rviz2
 ```
 
-### switch to another camera when using multiple cameras
-Since only one camera is active at a time, you can switch to another camera by publishing to /active_camera topic.
-#### Switch to front camera
-```bash
-ros2 topic pub /active_camera std_msgs/msg/String "data: 'front'" -1
+## Architecture
+
 ```
-#### Switch to back camera  
-```bash
-ros2 topic pub /active_camera std_msgs/msg/String "data: 'back'" -1
+start_vision_tmux.sh / multi_camera.launch.py
+├── 4× RealSense cameras (640x480@15fps, depth disabled)
+├── 4× object_detector nodes (ArUco pose detection)
+└── 4× aruco_row_scanner nodes (hazelnut flip detection)
 ```
-#### Switch to left camera
-```bash
-ros2 topic pub /active_camera std_msgs/msg/String "data: 'left'" -1
-```
-#### Switch to right camera
-```bash
-ros2 topic pub /active_camera std_msgs/msg/String "data: 'right'" -1
-```
-#### Make all cameras dormant (empty string)
-```bash
-ros2 topic pub /active_camera std_msgs/msg/String "data: ''" -1
-```
+
+All nodes subscribe to `/robot/dock_side` - only the matching camera side processes images.
