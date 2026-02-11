@@ -40,8 +40,25 @@ target_link_libraries(aruco_detector_node
   ${OpenCV_LIBRARIES}
 )
 
+add_executable(aruco_row_scanner
+  src/aruco_row_scanner_node.cpp
+)
+
+ament_target_dependencies(aruco_row_scanner
+  rclcpp
+  sensor_msgs
+  std_msgs
+  cv_bridge
+  OpenCV
+)
+
+target_link_libraries(aruco_row_scanner
+  ${OpenCV_LIBRARIES}
+)
+
 install(TARGETS
   aruco_detector_node
+  aruco_row_scanner
   DESTINATION lib/${PROJECT_NAME})
 
 # Install headers

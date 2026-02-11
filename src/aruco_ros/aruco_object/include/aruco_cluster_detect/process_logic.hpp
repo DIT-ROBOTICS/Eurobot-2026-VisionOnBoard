@@ -24,6 +24,7 @@ public:
     // `now` is used for marker timestamps; `marker_pub` may be nullptr to skip marker publishing.
     geometry_msgs::msg::PoseStamped compute_perpendicular_pose_from_floor_points(
         const std::vector<cv::Point2d> &floor_points,
+        const cv::Point2d &camera_in_base,
         const rclcpp::Time &now,
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub);
 
