@@ -115,6 +115,8 @@ right: 218622276687
 back: 419122270813
 front (d435): 313522070126
 
+white back: 218622278918
+white left: 218622278300 
 ### launch with serial number
 ```
 ros2 launch realsense2_camera rs_launch.py \
