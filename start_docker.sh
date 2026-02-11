@@ -2,5 +2,8 @@
 
 cd docker/ || { echo "Directory 'docker/' not found"; exit 1; }
 
-# Build AND then Up
+# Take down running containers and networks first
+docker compose down
+
+# Build and start fresh
 docker compose build && docker compose up -d
