@@ -41,6 +41,9 @@ local_parameters = [{'name': 'camera_name1', 'default': 'back', 'description': '
                     {'name': 'camera_namespace2', 'default': 'left', 'description': 'camera2 namespace'},
                     {'name': 'serial_no1', 'default': '_419122270813', 'description': 'camera1 serial number'},
                     {'name': 'serial_no2', 'default': '_218622276534', 'description': 'camera2 serial number'},
+                    {'name': 'camera_name3', 'default': 'right', 'description': 'camera3 unique name'},
+                    {'name': 'camera_namespace3', 'default': 'right', 'description': 'camera3 namespace'},
+                    {'name': 'serial_no3', 'default': '_218622276687', 'description': 'camera3 serial number'},
                     ]
 
 def yaml_to_dict(path_to_yaml):
@@ -55,6 +58,18 @@ def duplicate_params(general_params, posix):
     for param in local_params:
         param['original_name'] = param['name']
         param['name'] += posix
+        if param['original_name'] == 'enable_depth':
+            param['default'] = 'false'
+        elif param['original_name'] == 'enable_infra':
+            param['default'] = 'false'
+        elif param['original_name'] == 'enable_infra1':
+            param['default'] = 'false'
+        elif param['original_name'] == 'enable_infra2':
+            param['default'] = 'false'
+        elif param['original_name'] == 'enable_gyro':
+            param['default'] = 'false'
+        elif param['original_name'] == 'enable_accel':
+            param['default'] = 'false'
     return local_params
 
 def launch_static_transform_publisher_node(context : LaunchContext):
@@ -91,15 +106,28 @@ def launch_static_transform_publisher_node(context : LaunchContext):
             context.launch_configurations['camera_name2'] + '_link'
         ]
     )
-    return [LogInfo(msg=f"🚀 {log_message}"), node2, node3]
+    node4 = node_action(
+        namespace="",
+        name="tf2_static_transform_publisher",
+        package = "tf2_ros",
+        executable = "static_transform_publisher",
+        arguments=[
+            '0.125', '0.0', '0.30', '0.0', '0.7854', '-1.571',
+            'base_footprint',
+            context.launch_configurations['camera_name3'] + '_link'
+        ]
+    )
+    return [LogInfo(msg=f"🚀 {log_message}"), node2, node3, node4]
 
 def generate_launch_description():
     params1 = duplicate_params(rs_launch.configurable_parameters, '1')
     params2 = duplicate_params(rs_launch.configurable_parameters, '2')
+    params3 = duplicate_params(rs_launch.configurable_parameters, '3')
     return LaunchDescription(
         rs_launch.declare_configurable_parameters(local_parameters) +
         rs_launch.declare_configurable_parameters(params1) +
         rs_launch.declare_configurable_parameters(params2) +
+        rs_launch.declare_configurable_parameters(params3) +
         [
         OpaqueFunction(function=rs_launch.launch_setup,
                        kwargs = {'params'           : set_configurable_parameters(params1),
@@ -107,5 +135,8 @@ def generate_launch_description():
         OpaqueFunction(function=rs_launch.launch_setup,
                        kwargs = {'params'           : set_configurable_parameters(params2),
                                  'param_name_suffix': '2'}),
+        OpaqueFunction(function=rs_launch.launch_setup,
+                       kwargs = {'params'           : set_configurable_parameters(params3),
+                                 'param_name_suffix': '3'}),
         OpaqueFunction(function=launch_static_transform_publisher_node)
     ])
