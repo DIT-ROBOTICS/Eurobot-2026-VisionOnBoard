@@ -47,7 +47,9 @@ private:
 
             if (count > 0) {
                 double average = sum / count;
-                dist_publisher_->publish(std_msgs::msg::Int32{static_cast<int32_t>(average)});
+                std_msgs::msg::Int32 out_msg;
+                out_msg.data = static_cast<int32_t>(average);
+                dist_publisher_->publish(out_msg);
                 // RCLCPP_INFO(this->get_logger(), "Average depth at column %d: %.2f mm", target_x, average);
             }
 
