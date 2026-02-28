@@ -1,3 +1,8 @@
+x-common-vars: &ros2-vars
+  env_file: ".env"
+  environment:
+    - ROS_DOMAIN_ID=${ROS_DOMAIN_ID}
+
 services:
   vision-ws:
     build:
@@ -5,18 +10,18 @@ services:
       dockerfile: Dockerfile
       args:
         USER_UID: ${USER_UID:-1000}
-    image: eurobot-2026-vision:latest
-    container_name: vision-ws
+    image: eurobot-2026-vision-onboard:latest
+    container_name: vision-onboard-ws
     stdin_open: true
     tty: true
     privileged: true
     network_mode: host
-    command: ["/bin/bash"]
+    command: bash -c "./inside_start_vision_tmux.sh"
     working_dir: /home/vision/vision_ws
+    <<: *ros2-vars
     environment:
       - DISPLAY=${DISPLAY}
       - ROS_LOCALHOST_ONLY=0
-      - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       - ROS_WORKSPACE=/home/vision/vision_ws
     volumes:
