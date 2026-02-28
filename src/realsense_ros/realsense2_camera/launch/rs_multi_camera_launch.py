@@ -59,7 +59,11 @@ def duplicate_params(general_params, posix):
         param['original_name'] = param['name']
         param['name'] += posix
         if param['original_name'] == 'enable_depth':
+            param['default'] = 'true'
+        elif param['original_name'] == 'initial_reset':
             param['default'] = 'false'
+        elif param['original_name'] == 'enable_color':
+            param['default'] = 'true'
         elif param['original_name'] == 'enable_infra':
             param['default'] = 'false'
         elif param['original_name'] == 'enable_infra1':

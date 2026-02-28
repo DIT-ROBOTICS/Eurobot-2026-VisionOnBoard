@@ -12,7 +12,7 @@ public:
         this->declare_parameter<std::string>("front_topic", "/front/front/obj_distance");
         this->declare_parameter<std::string>("back_topic", "/back/back/obj_distance");
         this->declare_parameter<std::string>("success_topic", "/robot/vision/onTakeSuccess");
-        this->declare_parameter<int32_t>("distance_threshold_mm", 500);
+        this->declare_parameter<int32_t>("distance_threshold_mm", 100);
 
         left_topic_ = this->get_parameter("left_topic").as_string();
         right_topic_ = this->get_parameter("right_topic").as_string();

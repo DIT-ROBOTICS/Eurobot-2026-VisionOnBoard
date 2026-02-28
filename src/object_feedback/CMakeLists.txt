@@ -59,9 +59,9 @@ install(TARGETS
 )
 
 # Install headers
-install(DIRECTORY include/
-  DESTINATION include
-)
+# install(DIRECTORY include/
+#   DESTINATION include
+# )
 
 # Install launch and config
 install(DIRECTORY launch

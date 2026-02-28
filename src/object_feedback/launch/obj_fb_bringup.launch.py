@@ -61,7 +61,7 @@ ARGUMENTS = [
     ),
 	DeclareLaunchArgument(
         "distance_threshold_mm",
-        default_value="150",
+        default_value="190",
         description="Distance threshold in mm for feedback_all_node to determine success",
     ),
 ]
@@ -118,6 +118,7 @@ def generate_launch_description():
 			{"right_dist_topic": LaunchConfiguration("right_dist_topic")},
 			{"back_dist_topic": LaunchConfiguration("back_dist_topic")},
 			{"left_dist_topic": LaunchConfiguration("left_dist_topic")},
+			{"distance_threshold_mm": LaunchConfiguration("distance_threshold_mm")},
 			{"success_topic": LaunchConfiguration("success_topic")},
 		],
 	)
