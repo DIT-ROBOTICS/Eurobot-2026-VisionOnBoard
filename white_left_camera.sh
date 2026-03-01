@@ -30,7 +30,7 @@ tmux split-window -h -t ${SESSION}:${WIN_ID}.2
 # Ensure tiled layout
 tmux select-layout -t ${SESSION}:${WIN_ID} tiled
 
-# # Common commands for ALL panes
+# Common commands for ALL panes
 # for i in {0..3}; do
 #     TARGET="${SESSION}:${WIN_ID}.${i}"
 #     tmux send-keys -t $TARGET "docker exec -it vision-ws bash" C-m
@@ -42,20 +42,20 @@ tmux select-layout -t ${SESSION}:${WIN_ID} tiled
 
 # Upper Left (Pane 0)
 tmux send-keys -t ${SESSION}:${WIN_ID}.0 "ros2 launch realsense2_camera rs_launch.py \
-    camera_namespace:=back \
-    camera_name:=back \
-    serial_no:=\"'218622278918'\" \
+    camera_namespace:=left \
+    camera_name:=left \
+    serial_no:=\"'218622278300'\" \
     rgb_camera.color_profile:=640,480,15 \
     enable_depth:=false" C-m
 
 # Upper Right (Pane 1)
 tmux send-keys -t ${SESSION}:${WIN_ID}.1 "ros2 run aruco_object aruco_row_scanner --ros-args \
-    -p camera_position:=back \
+    -p camera_position:=left \
     -p team_color:=yellow" C-m
 
 # Lower Left (Pane 2)
 tmux send-keys -t ${SESSION}:${WIN_ID}.2 "ros2 run aruco_object aruco_detector_node --ros-args \
-    -p camera_position:=back" C-m
+    -p camera_position:=left" C-m
 
 # Lower Right (Pane 3)
 tmux send-keys -t ${SESSION}:${WIN_ID}.3 "ros2 topic hz /detected_dock_pose" C-m

@@ -39,11 +39,11 @@ local_parameters = [{'name': 'camera_name1', 'default': 'back', 'description': '
                     {'name': 'camera_name2', 'default': 'left', 'description': 'camera2 unique name'},
                     {'name': 'camera_namespace1', 'default': 'back', 'description': 'camera1 namespace'},
                     {'name': 'camera_namespace2', 'default': 'left', 'description': 'camera2 namespace'},
-                    {'name': 'serial_no1', 'default': '_419122270813', 'description': 'camera1 serial number'},
-                    {'name': 'serial_no2', 'default': '_218622276534', 'description': 'camera2 serial number'},
+                    {'name': 'serial_no1', 'default': '_218622278918', 'description': 'camera1 serial number'},
+                    {'name': 'serial_no2', 'default': '_218622278300', 'description': 'camera2 serial number'},
                     {'name': 'camera_name3', 'default': 'right', 'description': 'camera3 unique name'},
                     {'name': 'camera_namespace3', 'default': 'right', 'description': 'camera3 namespace'},
-                    {'name': 'serial_no3', 'default': '_218622276687', 'description': 'camera3 serial number'},
+                    {'name': 'serial_no3', 'default': '_419122270673', 'description': 'camera3 serial number'},
                     ]
 
 def yaml_to_dict(path_to_yaml):
@@ -90,7 +90,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
-            '0.0', '-0.125', '0.30', '-1.571', '0.7854', '-1.571',
+            '0.0', '-0.125', '0.30', '-1.571', '0.6954', '-1.571',
             'base_footprint',
             context.launch_configurations['camera_name1'] + '_link'
         ]
@@ -101,7 +101,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
-            '-0.125', '0.0', '0.30', '-3.142', '0.7854', '-1.571',
+            '-0.125', '0.0', '0.30', '-3.142', '0.6954', '-1.571',
             'base_footprint',
             context.launch_configurations['camera_name2'] + '_link'
         ]
@@ -112,7 +112,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
-            '0.125', '0.0', '0.30', '0.0', '0.7854', '-1.571',
+            '0.125', '0.0', '0.30', '0.0', '0.6954', '-1.571',
             'base_footprint',
             context.launch_configurations['camera_name3'] + '_link'
         ]

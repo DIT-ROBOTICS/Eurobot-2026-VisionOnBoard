@@ -6,4 +6,4 @@ cd docker/ || { echo "Directory 'docker/' not found"; exit 1; }
 docker compose down
 
 # Build and start fresh
-docker compose build && docker compose up -d
+docker compose up -d

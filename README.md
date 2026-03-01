@@ -54,7 +54,7 @@ Only one camera processes at a time. Publish to `/robot/dock_side` (Int16):
 | Left | 3 |
 
 ```bash
-ros2 topic pub /robot/dock_side std_msgs/msg/Int16 "data: 2" -1  # Switch to back
+ros2 topic pub /robot/dock_side std_msgs/msg/Int16 "data: 3" -1  # Switch to left
 ```
 
 ## RViz
@@ -108,12 +108,11 @@ ros2 launch aruco_object detector_multi.launch.py default_dock_side:=1
 ros2 launch aruco_object scanner_multi.launch.py default_dock_side:=1 team_color:=blue
 ```
 
-## camera serial number
+## camera serial number for white robot
 use `rs-enumerate-devices` to list the serial number
-left: 218622276534
-right: 218622276687
-back: 419122270813
-front (d435): 313522070126
+left: 218622278300
+right: 419122270673
+back: 218622278918
 
 white back: 218622278918
 white left: 218622278300 
