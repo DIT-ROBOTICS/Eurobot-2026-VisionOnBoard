@@ -54,15 +54,30 @@ ARGUMENTS = [
     ),
 	
     # Feedback all node arguments
-    DeclareLaunchArgument(
-        "success_topic",
-        default_value="/robot/vision/onTakeSuccess",
-        description="Success topic published by feedback_all_node",
+	DeclareLaunchArgument(
+		"take_topic",
+		default_value="/robot/on_take",
+		description="Take topic subscribed by feedback_all_node",
+	),
+	DeclareLaunchArgument(
+		"put_topic",
+		default_value="/robot/on_put",
+		description="Put topic subscribed by feedback_all_node",
+	),
+	DeclareLaunchArgument(
+		"success_topic",
+		default_value="/robot/vision/onTakeSuccess",
+		description="Success topic published by feedback_all_node",
+	),
+	DeclareLaunchArgument(
+        "take_threshold_mm",
+        default_value="100",
+        description="Distance threshold in mm for feedback_all_node while taking to determine success",
     ),
 	DeclareLaunchArgument(
-        "distance_threshold_mm",
-        default_value="190",
-        description="Distance threshold in mm for feedback_all_node to determine success",
+        "put_threshold_mm",
+        default_value="180",
+        description="Distance threshold in mm for feedback_all_node while putting to determine success",
     ),
 ]
 
@@ -118,7 +133,8 @@ def generate_launch_description():
 			{"right_dist_topic": LaunchConfiguration("right_dist_topic")},
 			{"back_dist_topic": LaunchConfiguration("back_dist_topic")},
 			{"left_dist_topic": LaunchConfiguration("left_dist_topic")},
-			{"distance_threshold_mm": LaunchConfiguration("distance_threshold_mm")},
+			{"take_threshold_mm": LaunchConfiguration("take_threshold_mm")},
+			{"put_threshold_mm": LaunchConfiguration("put_threshold_mm")},
 			{"success_topic": LaunchConfiguration("success_topic")},
 		],
 	)
