@@ -57,16 +57,17 @@ export ROS_DOMAIN_ID=13
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
-echo "=== [Detector] Waiting for BACK, LEFT, RIGHT camera topics... ==="
+echo "=== [Detector] Waiting for BACK, LEFT, RIGHT, FRONT camera topics... ==="
 while true; do
     BACK=$(ros2 topic list 2>/dev/null | grep -E "/back/back/color/camera_info")
     LEFT=$(ros2 topic list 2>/dev/null | grep -E "/left/left/color/camera_info")
     RIGHT=$(ros2 topic list 2>/dev/null | grep -E "/right/right/color/camera_info")
-    if [ -n "$BACK" ] && [ -n "$LEFT" ] && [ -n "$RIGHT" ]; then
-        echo "=== [Detector] All 3 cameras found! ==="
+    FRONT=$(ros2 topic list 2>/dev/null | grep -E "/front/front/color/camera_info")
+    if [ -n "$BACK" ] && [ -n "$LEFT" ] && [ -n "$RIGHT" ] && [ -n "$FRONT" ]; then
+        echo "=== [Detector] All 4 cameras found! ==="
         break
     fi
-    echo "[Detector] Waiting... (back:${BACK:-missing} left:${LEFT:-missing} right:${RIGHT:-missing})"
+    echo "[Detector] Waiting... (back:${BACK:-missing} left:${LEFT:-missing} right:${RIGHT:-missing} front:${FRONT:-missing})"
     sleep 2
 done
 sleep 2
@@ -83,16 +84,17 @@ export ROS_DOMAIN_ID=13
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
-echo "=== [Scanner] Waiting for BACK, LEFT, RIGHT camera topics... ==="
+echo "=== [Scanner] Waiting for BACK, LEFT, RIGHT, FRONT camera topics... ==="
 while true; do
     BACK=$(ros2 topic list 2>/dev/null | grep -E "/back/back/color/camera_info")
     LEFT=$(ros2 topic list 2>/dev/null | grep -E "/left/left/color/camera_info")
     RIGHT=$(ros2 topic list 2>/dev/null | grep -E "/right/right/color/camera_info")
-    if [ -n "$BACK" ] && [ -n "$LEFT" ] && [ -n "$RIGHT" ]; then
-        echo "=== [Scanner] All 3 cameras found! ==="
+    FRONT=$(ros2 topic list 2>/dev/null | grep -E "/front/front/color/camera_info")
+    if [ -n "$BACK" ] && [ -n "$LEFT" ] && [ -n "$RIGHT" ] && [ -n "$FRONT" ]; then
+        echo "=== [Scanner] All 4 cameras found! ==="
         break
     fi
-    echo "[Scanner] Waiting... (back:${BACK:-missing} left:${LEFT:-missing} right:${RIGHT:-missing})"
+    echo "[Scanner] Waiting... (back:${BACK:-missing} left:${LEFT:-missing} right:${RIGHT:-missing} front:${FRONT:-missing})"
     sleep 2
 done
 sleep 2

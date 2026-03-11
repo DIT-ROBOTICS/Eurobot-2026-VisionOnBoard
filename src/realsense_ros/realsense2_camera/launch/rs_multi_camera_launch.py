@@ -44,6 +44,9 @@ local_parameters = [{'name': 'camera_name1', 'default': 'back', 'description': '
                     {'name': 'camera_name3', 'default': 'right', 'description': 'camera3 unique name'},
                     {'name': 'camera_namespace3', 'default': 'right', 'description': 'camera3 namespace'},
                     {'name': 'serial_no3', 'default': '_218622276687', 'description': 'camera3 serial number'},
+                    {'name': 'camera_name4', 'default': 'front', 'description': 'camera4 unique name'},
+                    {'name': 'camera_namespace4', 'default': 'front', 'description': 'camera4 namespace'},
+                    {'name': 'serial_no4', 'default': '_313522070126', 'description': 'camera4 serial number'},
                     ]
 
 def yaml_to_dict(path_to_yaml):
@@ -60,6 +63,12 @@ def duplicate_params(general_params, posix):
         param['name'] += posix
         if param['original_name'] == 'enable_depth':
             param['default'] = 'true'
+        elif param['original_name'] == 'depth_module.depth_profile':
+            param['default'] = '640,360,30'
+        elif param['original_name'] == 'depth_module.color_profile':
+            param['default'] = '640,360,30'
+        elif param['original_name'] == 'rgb_camera.color_profile':
+            param['default'] = '640,360,30'
         elif param['original_name'] == 'initial_reset':
             param['default'] = 'false'
         elif param['original_name'] == 'enable_color':
@@ -90,7 +99,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
     # dummy static transformation from camera1 to camera2
     node2 = node_action(
         namespace="",
-        name="tf2_static_transform_publisher",
+        name="tf2_static_transform_publisher_back",
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
@@ -101,7 +110,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
     )
     node3 = node_action(
         namespace="",
-        name="tf2_static_transform_publisher",
+        name="tf2_static_transform_publisher_left",
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
@@ -112,7 +121,7 @@ def launch_static_transform_publisher_node(context : LaunchContext):
     )
     node4 = node_action(
         namespace="",
-        name="tf2_static_transform_publisher",
+        name="tf2_static_transform_publisher_right",
         package = "tf2_ros",
         executable = "static_transform_publisher",
         arguments=[
@@ -121,17 +130,31 @@ def launch_static_transform_publisher_node(context : LaunchContext):
             context.launch_configurations['camera_name3'] + '_link'
         ]
     )
-    return [LogInfo(msg=f"🚀 {log_message}"), node2, node3, node4]
+    # new front camera
+    node5 = node_action(
+        namespace="",
+        name="tf2_static_transform_publisher_front",
+        package = "tf2_ros",
+        executable = "static_transform_publisher",
+        arguments=[
+            '0.0', '0.125', '0.176', '1.571', '0.5236', '-1.571',
+            'base_footprint',
+            context.launch_configurations['camera_name4'] + '_link'
+        ]
+    )
+    return [LogInfo(msg=f"🚀 {log_message}"), node2, node3, node4, node5]
 
 def generate_launch_description():
     params1 = duplicate_params(rs_launch.configurable_parameters, '1')
     params2 = duplicate_params(rs_launch.configurable_parameters, '2')
     params3 = duplicate_params(rs_launch.configurable_parameters, '3')
+    params4 = duplicate_params(rs_launch.configurable_parameters, '4')
     return LaunchDescription(
         rs_launch.declare_configurable_parameters(local_parameters) +
         rs_launch.declare_configurable_parameters(params1) +
         rs_launch.declare_configurable_parameters(params2) +
         rs_launch.declare_configurable_parameters(params3) +
+        rs_launch.declare_configurable_parameters(params4) +
         [
         OpaqueFunction(function=rs_launch.launch_setup,
                        kwargs = {'params'           : set_configurable_parameters(params1),
@@ -142,5 +165,8 @@ def generate_launch_description():
         OpaqueFunction(function=rs_launch.launch_setup,
                        kwargs = {'params'           : set_configurable_parameters(params3),
                                  'param_name_suffix': '3'}),
+        OpaqueFunction(function=rs_launch.launch_setup,
+                       kwargs = {'params'           : set_configurable_parameters(params4),
+                                 'param_name_suffix': '4'}),
         OpaqueFunction(function=launch_static_transform_publisher_node)
     ])
