@@ -47,13 +47,13 @@ tmux select-layout -t ${SESSION_NAME}:${WIN_ID} tiled
 # Pane 0 (Top Left): All Cameras
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.0 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.0 "export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_multi_camera_launch.py" C-m
+tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.0 "export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-11} && source /opt/ros/humble/setup.bash && colcon build && source install/setup.bash && ros2 launch realsense2_camera rs_multi_camera_launch.py" C-m
 
 # Pane 1 (Top Right): Detector
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.1 'docker exec -it vision-ws bash' C-m
 sleep 1
 DETECTOR_CMD='
-export ROS_DOMAIN_ID=13
+export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-11}
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
@@ -79,7 +79,7 @@ tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.1 "$DETECTOR_CMD" C-m
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.2 'docker exec -it vision-ws bash' C-m
 sleep 1
 SCANNER_CMD='
-export ROS_DOMAIN_ID=13
+export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-11}
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 
@@ -104,7 +104,7 @@ tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.2 "$SCANNER_CMD" C-m
 # Pane 3 (Bottom Right): Shell / Utils
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.3 'docker exec -it vision-ws bash' C-m
 sleep 1
-tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.3 'export ROS_DOMAIN_ID=13 && source /opt/ros/humble/setup.bash && source install/setup.bash' C-m
+tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.3 'export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-11} && source /opt/ros/humble/setup.bash && source install/setup.bash' C-m
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.3 'echo "Ready to use. Run: ros2 topic list"' C-m
 tmux send-keys -t ${SESSION_NAME}:${WIN_ID}.3 'ros2 topic list' C-m
 
